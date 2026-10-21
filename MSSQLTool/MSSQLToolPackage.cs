@@ -33,6 +33,7 @@ using Microsoft.VisualStudio.Text.Editor;
 using System.Windows.Input;
 using System.Windows.Documents;
 using MSSQLTool.Modules;
+using MSSQLTool.Completion;
 
 namespace MSSQLTool
 {

@@ -86,10 +86,10 @@ namespace MSSQLTool
     {
         public static void ApplySharedTheme(FrameworkElement control)
         {
-            Brush bg = VsThemeBrushResolver.ResolveBrush(control, EnvironmentColors.DialogBackgroundBrushKey)
+            Brush bg = VsThemeBrushResolver.ResolveEnvironmentBrushByName(control, "DialogBackgroundBrushKey")
                 ?? VsThemeBrushResolver.ResolveBrush(control, EnvironmentColors.ToolWindowBackgroundBrushKey)
                 ?? SystemColors.WindowBrush;
-            Brush fg = VsThemeBrushResolver.ResolveBrush(control, EnvironmentColors.DialogTextBrushKey)
+            Brush fg = VsThemeBrushResolver.ResolveEnvironmentBrushByName(control, "DialogTextBrushKey")
                 ?? VsThemeBrushResolver.ResolveBrush(control, EnvironmentColors.ToolWindowTextBrushKey)
                 ?? SystemColors.WindowTextBrush;
             Brush border = VsThemeBrushResolver.ResolveBrush(control, EnvironmentColors.ToolWindowBorderBrushKey)
@@ -106,6 +106,9 @@ namespace MSSQLTool
 
             Color bgColor = VsThemeBrushResolver.GetBrushColor(bg, Colors.White);
             Color fgColor = VsThemeBrushResolver.GetBrushColor(fg, Colors.Black);
+            Color accentColor = VsThemeBrushResolver.GetBrushColor(accent, Color.FromRgb(0x00, 0x7A, 0xCC));
+            Color successColor = VsThemeBrushResolver.GetBrushColor(success, Color.FromRgb(0x10, 0x7C, 0x10));
+            Color errorColor = VsThemeBrushResolver.GetBrushColor(error, Color.FromRgb(0xA1, 0x26, 0x0D));
 
             // Contrast safety check: avoid dark-on-dark or light-on-light unreadable states
             double bgLum = VsThemeBrushResolver.GetRelativeLuminance(bgColor);
