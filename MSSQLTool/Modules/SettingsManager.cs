@@ -603,6 +603,8 @@ ORDER BY sd.[name];
             return GetRegisterValue("MyEmail") ?? string.Empty;
         }
 
+        public static FormatterOptions GetFormatSettings() => GetFormatterOptions();
+
         public static bool SaveMyEmail(string myEmail)
         {
             return SaveRegisterValue("MyEmail", myEmail ?? string.Empty);

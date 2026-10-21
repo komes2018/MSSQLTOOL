@@ -556,7 +556,7 @@ namespace MSSQLTool.JobQuickView
             UpdateActions();
             try
             {
-                var settings = SettingsManager.GetFormatSettings();
+                var settings = SettingsManager.GetFormatterOptions();
                 string formatted = await Task.Run(() => TSqlFormatter.FormatCode(source, settings), token);
                 token.ThrowIfCancellationRequested();
                 if (!string.Equals(source, formatted, StringComparison.Ordinal))
