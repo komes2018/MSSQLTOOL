@@ -136,7 +136,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
 
-          msbuild "MSSQLTool\MSSQLTool.sln" `
+          msbuild "MSSQLTool\MSSQLTool.csproj" `
             /restore `
             /m `
             /t:Rebuild `
