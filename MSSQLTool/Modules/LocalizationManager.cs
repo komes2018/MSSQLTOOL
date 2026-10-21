@@ -37,6 +37,33 @@ namespace MSSQLTool
 
         private static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>(StringComparer.Ordinal)
         {
+            // Query Safety (防手滑安全警告)
+            ["Confirm query execution"] = "确认查询执行",
+            ["This query may change or remove data"] = "当前查询可能修改或删除数据",
+            ["UPDATE and DELETE without WHERE, and TRUNCATE TABLE, require your approval. Cancel to review the query."] = "未包含 WHERE 条件的 UPDATE、DELETE 以及 TRUNCATE TABLE 操作需要您的确认。取消以返回检查查询。",
+            ["Allow repeats this session"] = "本次会话允许重复执行",
+            ["Run once"] = "仅执行一次",
+            ["Allow repeats applies only to this exact SQL in this query window and connection. Changed SQL, a different database, reconnecting or closing the window requires approval again."] = "「允许重复执行」仅适用于当前查询窗口与连接中内容完全一致的 SQL。修改 SQL、切换数据库、重新连接或关闭窗口后均需重新确认。",
+            ["Repeat approval is unavailable until the query can be fully checked and the active connection session can be identified. You can still run once."] = "在完整检查查询并识别活动连接会话前，无法开启重复执行许可。您仍可选择「仅执行一次」。",
+            ["Line {0}: {1} - {2}"] = "第 {0} 行：{1} - {2}",
+            ["UPDATE without WHERE"] = "缺少 WHERE 条件的 UPDATE",
+            ["DELETE without WHERE"] = "缺少 WHERE 条件的 DELETE",
+            ["TRUNCATE TABLE"] = "清空表 (TRUNCATE TABLE)",
+            ["Target in query"] = "查询中的目标表",
+            ["Active query window (line numbers are relative to the executed selection or script)"] = "当前查询窗口（行号相对于所选执行文本或脚本）",
+            ["default"] = "默认",
+            ["Server: {0} | Starting database: {1}\nLine numbers are relative to the executed selection or script."] = "服务器：{0} | 初始数据库：{1}\n行号相对于所选执行文本或脚本。",
+            ["The query could not be fully checked (SQL syntax or unsupported syntax near line {0}). Review it before running. Repeat approval is unavailable for this execution."] = "未能完整解析并检查此查询（第 {0} 行附近可能存在语法错误或不受支持的语法）。请在运行前仔细复核。本次执行无法开启重复执行许可。",
+            ["The query could not be checked. Review it before running. {0}"] = "无法检查此查询。请在运行前仔细复核。{0}",
+            ["Query check unavailable"] = "查询检查不可用",
+            ["Query execution was cancelled because its warning could not be displayed. {0}"] = "由于无法显示安全警告对话框，查询执行已取消。{0}",
+            ["The selected query text is unavailable."] = "无法获取所选查询文本。",
+            ["Query execution"] = "查询执行安全",
+            ["Warn when running fatal actions"] = "执行高危/致命操作前发出安全警告",
+            ["Ask before running UPDATE or DELETE without a WHERE clause, or TRUNCATE TABLE. Temp tables and table variables are excluded. Enabled by default."] = "在执行缺少 WHERE 条件的 UPDATE/DELETE 或 TRUNCATE TABLE 前发出安全确认提醒（临时表和表变量自动豁免）。默认开启。",
+            ["The warning lets you cancel, run once, or allow repeated execution of the same SQL in the same query window and connection. Saving this setting clears repeat approvals."] = "安全警告支持取消、仅运行一次，或在同一窗口与连接下允许重复执行相同 SQL。保存设置会清除当前的重复许可记录。",
+            ["Could not save query execution settings."] = "无法保存查询执行安全设置。",
+
             ["MSSQL Tool - Settings"] = "MSSQL Tool - 设置",
             ["About"] = "关于", ["Tools"] = "工具",
             ["Language"] = "语言", ["Interface language:"] = "界面语言：",

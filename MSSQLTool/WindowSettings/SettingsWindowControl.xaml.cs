@@ -179,6 +179,7 @@ as select 1;
 
                 OpenAiApiKey.Password = SettingsManager.GetOpenAiApiKey();
 
+                WarnWhenRunningFatalAction.IsChecked = SettingsManager.GetWarnWhenRunningFatalAction();
                 EnableUpdateChecks.IsChecked = SettingsManager.GetEnableUpdateChecks();
                 UpdateUpdateStatus();
 
@@ -349,6 +350,16 @@ as select 1;
         {
             Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
             e.Handled = true;
+        }
+
+        private void SaveQuerySafety_Click(object sender, RoutedEventArgs e)
+        {
+            if (!SettingsManager.SaveWarnWhenRunningFatalAction(WarnWhenRunningFatalAction.IsChecked == true))
+            {
+                MessageBox.Show(LocalizationManager.T("Could not save query execution settings."), "MSSQL Tool");
+                return;
+            }
+            SavedMessage();
         }
 
         private void button_SaveUpdateSettings_Click(object sender, RoutedEventArgs e)

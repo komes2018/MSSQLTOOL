@@ -125,6 +125,12 @@
     <Compile Include="Modules\QueryHistorySqliteStore.cs" />
     <Compile Include="UpdateChecker.cs" />
     <Compile Include="UpdateInfoBar.cs" />
+    <Compile Include="QuerySafety\FatalActionAnalyzer.cs" />
+    <Compile Include="QuerySafety\FatalActionGuard.cs" />
+    <Compile Include="QuerySafety\FatalActionSession.cs" />
+    <Compile Include="QuerySafety\FatalActionWarningDialog.xaml.cs">
+      <DependentUpon>FatalActionWarningDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Commands\CommandProcessor.cs" />
     <Compile Include="Commands\ExportGridToAsInsertsCommand.cs" />
     <Compile Include="Commands\FormatQueryCommand.cs" />
@@ -587,6 +593,10 @@
   </ItemGroup>
   <ItemGroup>
     <Page Include="Commands\Dialogs\FormatOptionsDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="QuerySafety\FatalActionWarningDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

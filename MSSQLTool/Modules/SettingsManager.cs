@@ -535,6 +535,19 @@ ORDER BY sd.[name];
             return SaveRegisterValue("QueryTemplateState", json ?? string.Empty);
         }
 
+        public static bool GetWarnWhenRunningFatalAction()
+        {
+            string value = GetRegisterValue("WarnWhenRunningFatalAction");
+            return !bool.TryParse(value, out bool enabled) || enabled;
+        }
+
+        public static bool SaveWarnWhenRunningFatalAction(bool enabled)
+        {
+            bool saved = SaveRegisterValue("WarnWhenRunningFatalAction", enabled.ToString());
+            if (saved) QuerySafety.FatalActionGuard.ResetApprovals();
+            return saved;
+        }
+
         public static bool GetEnableUpdateChecks()
         {
             string value = GetRegisterValue("EnableUpdateChecks");
