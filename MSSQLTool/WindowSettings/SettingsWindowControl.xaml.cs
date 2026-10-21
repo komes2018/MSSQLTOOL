@@ -188,6 +188,7 @@ as select 1;
 
                 WarnWhenRunningFatalAction.IsChecked = SettingsManager.GetWarnWhenRunningFatalAction();
                 EnableUpdateChecks.IsChecked = SettingsManager.GetEnableUpdateChecks();
+                UpdateProxyAddress.Text = SettingsManager.GetUpdateProxyAddress();
                 UpdateUpdateStatus();
 
                 LoadConnectionColorRules();
@@ -381,13 +382,59 @@ as select 1;
         private void button_SaveUpdateSettings_Click(object sender, RoutedEventArgs e)
         {
             SettingsManager.SaveEnableUpdateChecks(EnableUpdateChecks.IsChecked.GetValueOrDefault(true));
+            SettingsManager.SaveUpdateProxyAddress(UpdateProxyAddress.Text?.Trim());
             SavedMessage();
         }
 
         private void button_CheckUpdates_Click(object sender, RoutedEventArgs e)
         {
+            SettingsManager.SaveUpdateProxyAddress(UpdateProxyAddress.Text?.Trim());
             UpdateChecker.CheckNow(MSSQLToolPackage.PackageInstance, ignoreSettings: true);
             UpdateUpdateStatus();
+        }
+
+        private async void button_TestProxy_Click(object sender, RoutedEventArgs e)
+        {
+            string proxyAddress = UpdateProxyAddress.Text?.Trim();
+            button_TestProxy.IsEnabled = false;
+            ProxyTestResultText.Visibility = Visibility.Visible;
+            ProxyTestResultText.Foreground = (Brush)FindResource("ToolThemeForegroundBrush");
+            ProxyTestResultText.Text = LocalizationManager.T("正在测试代理连接...");
+
+            try
+            {
+                var sw = Stopwatch.StartNew();
+                using (var client = UpdateChecker.CreateHttpClientWithProxy(proxyAddress))
+                {
+                    client.Timeout = TimeSpan.FromSeconds(10);
+                    client.DefaultRequestHeaders.UserAgent.ParseAdd("MSSQLTool");
+                    client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+
+                    using (var response = await client.GetAsync("https://api.github.com/zen"))
+                    {
+                        sw.Stop();
+                        if (response.IsSuccessStatusCode)
+                        {
+                            ProxyTestResultText.Foreground = (Brush)FindResource("ToolThemeStatusSuccessBrush");
+                            ProxyTestResultText.Text = LocalizationManager.Format("代理连接成功！延迟: {0} ms", sw.ElapsedMilliseconds);
+                        }
+                        else
+                        {
+                            ProxyTestResultText.Foreground = (Brush)FindResource("ToolThemeStatusErrorBrush");
+                            ProxyTestResultText.Text = LocalizationManager.Format("连接返回异常: HTTP {0}", (int)response.StatusCode);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ProxyTestResultText.Foreground = (Brush)FindResource("ToolThemeStatusErrorBrush");
+                ProxyTestResultText.Text = LocalizationManager.Format("代理连接失败: {0}", ex.Message);
+            }
+            finally
+            {
+                button_TestProxy.IsEnabled = true;
+            }
         }
 
         /// <summary>

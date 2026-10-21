@@ -381,6 +381,12 @@ namespace MSSQLTool
 
             // Settings -> Updates status text and the up-to-date prompt.
             ["Information"] = "信息",
+            ["Update proxy address:"] = "更新代理地址:",
+            ["Test Proxy"] = "测试代理",
+            ["Testing proxy connection..."] = "正在测试代理连接...",
+            ["Proxy connected successfully! Latency: {0} ms"] = "代理连接成功！延迟: {0} ms",
+            ["Connection returned error: HTTP {0}"] = "连接返回异常: HTTP {0}",
+            ["Proxy connection failed: {0}"] = "代理连接失败: {0}",
             ["Update check skipped because it is disabled in settings."] = "已跳过更新检查：设置中已关闭。",            ["Startup update check scheduled."] = "已安排在启动后检查更新。",
             ["Running startup update check."] = "正在执行启动时的更新检查。",
             ["Startup update check failed: {0}"] = "启动时的更新检查失败：{0}",

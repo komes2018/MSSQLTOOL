@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
+using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -257,8 +258,9 @@ namespace MSSQLTool
                 ? Path.Combine(folder, "MSSQLTool-update.vsix")
                 : Path.Combine(folder, StagedVsixName(version));
             string logPath = HelperLogPath;
+            string proxy = SettingsManager.GetUpdateProxyAddress()?.Trim();
 
-            if (!TryStartUpdateHelper(folder, version, vsixPath, assetUrl, sha256, assetSize, installerPath, logPath, out string failure))
+            if (!TryStartUpdateHelper(folder, version, vsixPath, assetUrl, sha256, assetSize, installerPath, logPath, proxy, out string failure))
             {
                 Log($"Deferred update on close: could not start the installer helper ({failure}).");
                 SetLastUpdateResult(LocalizationManager.Format("Could not start the update installer ({0}); opened release page instead.", failure));
@@ -276,7 +278,7 @@ namespace MSSQLTool
 
         /// <summary>Writes the helper script and starts it detached from this process.</summary>
         internal static bool TryStartUpdateHelper(string folder, string version, string vsixPath, string assetUrl,
-            string sha256, long assetSize, string installerPath, string logPath, out string failure)
+            string sha256, long assetSize, string installerPath, string logPath, string proxy, out string failure)
         {
             failure = null;
             try
@@ -295,7 +297,7 @@ namespace MSSQLTool
                 // as soon as the log moved to a different folder (PowerShell exits without a word when
                 // -File points at a file that does not exist).
                 string arguments = BuildHelperArguments(scriptPath, Process.GetCurrentProcess().Id, version, vsixPath,
-                    assetUrl, sha256, assetSize, installerPath, ReleasePageUrl, logPath, HelperWaitMinutes);
+                    assetUrl, sha256, assetSize, installerPath, ReleasePageUrl, logPath, HelperWaitMinutes, proxy);
 
                 var start = new ProcessStartInfo
                 {
@@ -340,7 +342,7 @@ namespace MSSQLTool
 
         internal static string BuildHelperArguments(string scriptPath, int processId, string version, string vsixPath,
             string assetUrl, string sha256, long assetSize, string installerPath, string releasePage, string logPath,
-            int waitMinutes)
+            int waitMinutes, string proxy = null)
         {
             var builder = new StringBuilder();
             builder.Append("-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ");
@@ -359,6 +361,7 @@ namespace MSSQLTool
             AppendHelperArgument(builder, "InstanceId", GetSsmsInstanceId());
             AppendHelperArgument(builder, "ReleasePage", releasePage);
             AppendHelperArgument(builder, "LogPath", logPath);
+            AppendHelperArgument(builder, "Proxy", proxy);
             return builder.ToString();
         }
 
@@ -576,11 +579,59 @@ namespace MSSQLTool
         }
 #endif
 
+        internal static HttpClient CreateHttpClientWithProxy(string proxyAddress)
+        {
+            var handler = new HttpClientHandler();
+            if (!string.IsNullOrWhiteSpace(proxyAddress))
+            {
+                try
+                {
+                    string trimmed = proxyAddress.Trim();
+                    if (!trimmed.Contains("://"))
+                    {
+                        trimmed = "http://" + trimmed;
+                    }
+
+                    var uri = new Uri(trimmed);
+                    var webProxy = new WebProxy(uri);
+                    if (!string.IsNullOrEmpty(uri.UserInfo))
+                    {
+                        string[] parts = uri.UserInfo.Split(':');
+                        string user = parts[0];
+                        string pass = parts.Length > 1 ? parts[1] : string.Empty;
+                        webProxy.Credentials = new NetworkCredential(user, pass);
+                    }
+                    handler.Proxy = webProxy;
+                    handler.UseProxy = true;
+                    Log($"Using configured update proxy: {uri.Scheme}://{uri.Authority}");
+                }
+                catch (Exception ex)
+                {
+                    Log($"Failed to configure update proxy '{proxyAddress}': {ex.Message}. Falling back to default proxy.");
+                    handler.UseProxy = true;
+                }
+            }
+            else
+            {
+                handler.UseProxy = true;
+            }
+
+            var client = new HttpClient(handler);
+            client.Timeout = TimeSpan.FromSeconds(60);
+            return client;
+        }
+
+        internal static HttpClient CreateHttpClient()
+        {
+            string proxy = SettingsManager.GetUpdateProxyAddress();
+            return CreateHttpClientWithProxy(proxy);
+        }
+
         private static async Task<GitHubRelease> GetLatestReleaseAsync(CancellationToken token)
         {
             try
             {
-                using (var client = new HttpClient())
+                using (var client = CreateHttpClient())
                 {
                     client.DefaultRequestHeaders.UserAgent.ParseAdd(ProductName);
                     client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
@@ -1247,7 +1298,7 @@ namespace MSSQLTool
         private static async Task DownloadFileAsync(string url, string path, CancellationToken token,
             Action<long, long> onProgress = null)
         {
-            using (var client = new HttpClient())
+            using (var client = CreateHttpClient())
             {
                 client.DefaultRequestHeaders.UserAgent.ParseAdd(ProductName);
                 using (var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, token))

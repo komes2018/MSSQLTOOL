@@ -18,12 +18,18 @@ param(
     [string]$InstanceId = '',
     [string]$ReleasePage = '',
     [string]$LogPath = '',
+    [string]$Proxy = '',
     [int]$WaitMinutes = 5
 )
 
 $ErrorActionPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'
 $DownloadAttempts = 3
+
+if (-not [string]::IsNullOrWhiteSpace($Proxy)) {
+    $env:HTTP_PROXY = $Proxy
+    $env:HTTPS_PROXY = $Proxy
+}
 
 function Write-Log([string]$message) {
     $stamp = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
@@ -74,7 +80,15 @@ function Get-Package([string]$destination) {
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             Write-Log "downloading $AssetUrl (attempt $attempt of $DownloadAttempts)"
             if (Test-Path -LiteralPath $partial) { Remove-Item -LiteralPath $partial -Force -ErrorAction SilentlyContinue }
-            Invoke-WebRequest -Uri $AssetUrl -OutFile $partial -UseBasicParsing
+            $iwrArgs = @{
+                Uri = $AssetUrl
+                OutFile = $partial
+                UseBasicParsing = $true
+            }
+            if (-not [string]::IsNullOrWhiteSpace($Proxy)) {
+                $iwrArgs['Proxy'] = $Proxy
+            }
+            Invoke-WebRequest @iwrArgs
             if (Test-Package $partial) {
                 Move-Item -LiteralPath $partial -Destination $destination -Force
                 Set-Content -LiteralPath ($destination + '.ready') -Value 'verified by the update helper' -Encoding UTF8

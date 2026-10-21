@@ -699,6 +699,16 @@ ORDER BY sd.[name];
             return SaveRegisterValue("EnableUpdateChecks", enableUpdateChecks.ToString());
         }
 
+        public static string GetUpdateProxyAddress()
+        {
+            return GetRegisterValue("UpdateProxyAddress") ?? string.Empty;
+        }
+
+        public static bool SaveUpdateProxyAddress(string proxyAddress)
+        {
+            return SaveRegisterValue("UpdateProxyAddress", proxyAddress ?? string.Empty);
+        }
+
         public static List<FrequentlyUsedEmail> GetFrequentlyUsedEmails()
         {
 
