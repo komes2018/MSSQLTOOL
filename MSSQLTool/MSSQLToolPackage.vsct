@@ -41,6 +41,10 @@
         <Parent guid="guidMSSQLToolPackageCmdSet" id="Toolbar" />
       </Group>
 
+      <Group guid="guidMSSQLToolPackageCmdSet" id="MSSQLToolTopMenuGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS" />
+      </Group>
+
       <Group guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Format" priority="0x0001">
         <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenu" />
       </Group>
@@ -99,6 +103,14 @@
         </Strings>
       </Menu>
 
+      <Menu guid="guidMSSQLToolPackageCmdSet" id="MSSQLToolTopMenu" type="Menu" priority="0x0600">
+        <Parent guid="guidMSSQLToolPackageCmdSet" id="MSSQLToolTopMenuGroup" />
+        <Strings>
+          <ButtonText>MSSQL Tool</ButtonText>
+          <CommandName>MSSQL Tool</CommandName>
+        </Strings>
+      </Menu>
+
     </Menus>
 
     
@@ -126,6 +138,8 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>格式化查询</ButtonText>
+          <CommandName>MSSQL Tool: 格式化查询</CommandName>
+          <CanonicalName>MSSQLTool.FormatQuery</CanonicalName>
           <LocCanonicalName>MSSQLTool.FormatQuery</LocCanonicalName>
           <ToolTipText>格式化 SQL 查询（按住 Shift 可打开高级选项）</ToolTipText>
         </Strings>
@@ -138,6 +152,8 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>将网格导出为 Excel</ButtonText>
+          <CommandName>MSSQL Tool: 将网格导出为 Excel</CommandName>
+          <CanonicalName>MSSQLTool.ExportGridToExcel</CanonicalName>
           <LocCanonicalName>MSSQLTool.ExportGridToExcel</LocCanonicalName>
           <ToolTipText>将当前结果网格导出为 Excel 文件（按住 Shift 可直接静默导出并打开）</ToolTipText>
         </Strings>
@@ -149,6 +165,8 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>将网格导出并通过邮件发送</ButtonText>
+          <CommandName>MSSQL Tool: 将网格导出并通过邮件发送</CommandName>
+          <CanonicalName>MSSQLTool.ExportGridToEmail</CanonicalName>
           <LocCanonicalName>MSSQLTool.ExportGridToEmail</LocCanonicalName>
           <ToolTipText>将当前结果网格导出并通过邮件发送</ToolTipText>
         </Strings>
@@ -160,7 +178,10 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>将结果网格导出为临时表</ButtonText>
+          <CommandName>MSSQL Tool: 将结果网格导出为临时表</CommandName>
+          <CanonicalName>MSSQLTool.ExportGridAsTempTable</CanonicalName>
           <LocCanonicalName>MSSQLTool.ExportGridAsTempTable</LocCanonicalName>
+          <ToolTipText>将当前结果网格导出为临时表脚本并在新窗口中打开</ToolTipText>
         </Strings>
       </Button>
 
@@ -170,6 +191,8 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>导出网格到透视表</ButtonText>
+          <CommandName>MSSQL Tool: 导出网格到透视表</CommandName>
+          <CanonicalName>MSSQLTool.ExportGridToPivotTable</CanonicalName>
           <LocCanonicalName>MSSQLTool.ExportGridToPivotTable</LocCanonicalName>
           <ToolTipText>在新的透视表窗口中汇总分析当前查询结果</ToolTipText>
         </Strings>
@@ -181,7 +204,10 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>在新窗口生成对象定义脚本</ButtonText>
+          <CommandName>MSSQL Tool: 在新窗口生成对象定义脚本</CommandName>
+          <CanonicalName>MSSQLTool.ScriptSelectedObject</CanonicalName>
           <LocCanonicalName>MSSQLTool.ScriptSelectedObject</LocCanonicalName>
+          <ToolTipText>生成选定对象或光标处对象的 DDL 脚本并在新窗口中打开 (F12)</ToolTipText>
         </Strings>
       </Button>
 
@@ -191,6 +217,7 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>在对象资源管理器中定位</ButtonText>
+          <CommandName>MSSQL Tool: 在对象资源管理器中定位</CommandName>
           <CanonicalName>MSSQLTool.OpenInObjectExplorer</CanonicalName>
           <LocCanonicalName>MSSQLTool.OpenInObjectExplorer</LocCanonicalName>
           <ToolTipText>在对象资源管理器中定位选中的对象或光标处的对象</ToolTipText>
@@ -203,8 +230,10 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>快速搜索</ButtonText>
-          <LocCanonicalName>MSSQLTool.QuickSqlSearch</LocCanonicalName>
+          <CommandName>MSSQL Tool: 快速搜索</CommandName>
           <CanonicalName>MSSQLTool.QuickSqlSearch</CanonicalName>
+          <LocCanonicalName>MSSQLTool.QuickSqlSearch</LocCanonicalName>
+          <ToolTipText>在当前数据库中极速模糊搜索表、视图、存储过程、字段与定义内容</ToolTipText>
         </Strings>
       </Button>
 
@@ -214,6 +243,10 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>代码片段管理器</ButtonText>
+          <CommandName>MSSQL Tool: 代码片段管理器</CommandName>
+          <CanonicalName>MSSQLTool.SnippetManager</CanonicalName>
+          <LocCanonicalName>MSSQLTool.SnippetManager</LocCanonicalName>
+          <ToolTipText>管理自定义 SQL 代码片段与常用简写缩写</ToolTipText>
         </Strings>
       </Button>
 
@@ -223,6 +256,8 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>选择当前语句</ButtonText>
+          <CommandName>MSSQL Tool: 选择当前语句</CommandName>
+          <CanonicalName>MSSQLTool.SelectCurrentStatement</CanonicalName>
           <LocCanonicalName>MSSQLTool.SelectCurrentStatement</LocCanonicalName>
           <ToolTipText>选择光标所在的 SQL 语句（Shift+F5）</ToolTipText>
         </Strings>
@@ -234,6 +269,8 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>切换块注释</ButtonText>
+          <CommandName>MSSQL Tool: 切换块注释</CommandName>
+          <CanonicalName>MSSQLTool.ToggleBlockComment</CanonicalName>
           <LocCanonicalName>MSSQLTool.ToggleBlockComment</LocCanonicalName>
           <ToolTipText>使用 /* */ 包裹所选 SQL，或移除光标处的块注释</ToolTipText>
         </Strings>
@@ -245,6 +282,10 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>查询历史</ButtonText>
+          <CommandName>MSSQL Tool: 查询历史</CommandName>
+          <CanonicalName>MSSQLTool.QueryHistory</CanonicalName>
+          <LocCanonicalName>MSSQLTool.QueryHistory</LocCanonicalName>
+          <ToolTipText>查看、检索与重用此前在 SSMS 中执行过的查询脚本历史记录</ToolTipText>
         </Strings>
       </Button>
 
@@ -254,6 +295,9 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>统计信息摘要</ButtonText>
+          <CommandName>MSSQL Tool: 统计信息摘要</CommandName>
+          <CanonicalName>MSSQLTool.StatisticsSummary</CanonicalName>
+          <LocCanonicalName>MSSQLTool.StatisticsSummary</LocCanonicalName>
           <ToolTipText>打开最近捕获的 SET STATISTICS IO/TIME 输出摘要。</ToolTipText>
         </Strings>
       </Button>
@@ -261,8 +305,13 @@
       <Button guid="guidMSSQLToolPackageCmdSet" id="HealthDashboardServerCommand" priority="0x0000" type="Button">
         <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Health" />
         <Icon guid="guidServerHealth" id="bmpServerHealth" />
+        <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>服务器健康面板</ButtonText>
+          <CommandName>MSSQL Tool: 服务器健康面板</CommandName>
+          <CanonicalName>MSSQLTool.ServerHealthDashboard</CanonicalName>
+          <LocCanonicalName>MSSQLTool.ServerHealthDashboard</LocCanonicalName>
+          <ToolTipText>查看当前 SQL Server 实例的关键健康指标与运行状态</ToolTipText>
         </Strings>
       </Button>
 
@@ -274,24 +323,35 @@
         <CommandFlag>AllowVisibilityChangeOnToolBar</CommandFlag>
         <Strings>
           <ButtonText>SQL Server 版本信息</ButtonText>
+          <CommandName>MSSQL Tool: SQL Server 版本信息</CommandName>
+          <CanonicalName>MSSQLTool.SqlServerBuilds</CanonicalName>
+          <LocCanonicalName>MSSQLTool.SqlServerBuilds</LocCanonicalName>
         </Strings>
       </Button>
 
       <Button guid="guidMSSQLToolPackageCmdSet" id="DataTransferCommand" priority="0x0000" type="Button">
         <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_DataTransfer" />
         <Icon guid="guidDataTransfer" id="bmpDataTransfer" />
-        <!--<CommandFlag>DefaultInvisible</CommandFlag>-->
+        <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>数据传输</ButtonText>
+          <CommandName>MSSQL Tool: 数据传输</CommandName>
+          <CanonicalName>MSSQLTool.DataTransfer</CanonicalName>
+          <LocCanonicalName>MSSQLTool.DataTransfer</LocCanonicalName>
+          <ToolTipText>在不同数据库或实例之间批量快速迁移/同步表数据</ToolTipText>
         </Strings>
       </Button>
 
       <Button guid="guidMSSQLToolPackageCmdSet" id="DatabaseScripterCommand" priority="0x0000" type="Button">
         <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_DataTransfer" />
         <Icon guid="guidDatabaseScripter" id="bmpDatabaseScripter" />
-        <!--<CommandFlag>DefaultInvisible</CommandFlag>-->
+        <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>同步到 GitHub</ButtonText>
+          <CommandName>MSSQL Tool: 同步到 GitHub</CommandName>
+          <CanonicalName>MSSQLTool.SyncToGitHub</CanonicalName>
+          <LocCanonicalName>MSSQLTool.SyncToGitHub</LocCanonicalName>
+          <ToolTipText>将数据库全部对象脚本化并自动版本化提交同步到 GitHub 仓库</ToolTipText>
         </Strings>
       </Button>
 
@@ -302,6 +362,8 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>模板语句</ButtonText>
+          <CommandName>MSSQL Tool: 模板语句</CommandName>
+          <CanonicalName>MSSQLTool.QueryTemplatePicker</CanonicalName>
           <LocCanonicalName>MSSQLTool.QueryTemplatePicker</LocCanonicalName>
           <ToolTipText>浏览模板语句库：竖向分类树即模板文件夹层级，可新建/重命名/删除分类与语句，双击或回车插入编辑器（Ctrl+Alt+T）</ToolTipText>
         </Strings>
@@ -313,6 +375,8 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>刷新补全缓存</ButtonText>
+          <CommandName>MSSQL Tool: 刷新补全缓存</CommandName>
+          <CanonicalName>MSSQLTool.RefreshCompletionMetadata</CanonicalName>
           <LocCanonicalName>MSSQLTool.RefreshCompletionMetadata</LocCanonicalName>
           <ToolTipText>丢弃 SQL 补全元数据缓存并重新加载（适用于其他人在服务器上修改了表结构的情况）</ToolTipText>
         </Strings>
@@ -324,6 +388,8 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>结构对比</ButtonText>
+          <CommandName>MSSQL Tool: 结构对比</CommandName>
+          <CanonicalName>MSSQLTool.SchemaCompare</CanonicalName>
           <LocCanonicalName>MSSQLTool.SchemaCompare</LocCanonicalName>
           <ToolTipText>比较两个数据库的结构差异，并生成同步脚本</ToolTipText>
         </Strings>
@@ -335,6 +401,8 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>数据对比</ButtonText>
+          <CommandName>MSSQL Tool: 数据对比</CommandName>
+          <CanonicalName>MSSQLTool.DataCompare</CanonicalName>
           <LocCanonicalName>MSSQLTool.DataCompare</LocCanonicalName>
           <ToolTipText>对比两个表中的数据行并同步选定的差异</ToolTipText>
         </Strings>
@@ -342,17 +410,27 @@
 
       <Button guid="guidMSSQLToolPackageCmdSet" id="SettingsButton" priority="0x0000" type="Button">
         <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Settings" />
-        <Icon guid="guidImagesSettings" id="bmpSettings" />        
+        <Icon guid="guidImagesSettings" id="bmpSettings" />
+        <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>设置</ButtonText>
+          <CommandName>MSSQL Tool: 设置</CommandName>
+          <CanonicalName>MSSQLTool.Settings</CanonicalName>
+          <LocCanonicalName>MSSQLTool.Settings</LocCanonicalName>
+          <ToolTipText>打开 MSSQL Tool 设置与选项窗口</ToolTipText>
         </Strings>
       </Button>
       
       <Button guid="guidMSSQLToolPackageCmdSet" id="AboutButton" priority="0x2000" type="Button">
         <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolbarGroup" />
         <Icon guid="guidInfo" id="bmpInfo" />
+        <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>关于</ButtonText>
+          <CommandName>MSSQL Tool: 关于</CommandName>
+          <CanonicalName>MSSQLTool.About</CanonicalName>
+          <LocCanonicalName>MSSQLTool.About</LocCanonicalName>
+          <ToolTipText>关于 MSSQL Tool</ToolTipText>
         </Strings>
       </Button>
 
@@ -363,6 +441,7 @@
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
           <ButtonText>作业快速管理</ButtonText>
+          <CommandName>MSSQL Tool: 作业快速管理</CommandName>
           <CanonicalName>MSSQLTool.JobQuickView</CanonicalName>
           <LocCanonicalName>MSSQLTool.JobQuickView</LocCanonicalName>
           <ToolTipText>快速管理在对象资源管理器中选中的 SQL Server Agent 作业</ToolTipText>
@@ -376,6 +455,7 @@
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
           <ButtonText>选中列表升序排序 (+Shift: 纵向)</ButtonText>
+          <CommandName>MSSQL Tool: 选中列表升序排序</CommandName>
           <CanonicalName>MSSQLTool.SortSelectedTextAscending</CanonicalName>
           <LocCanonicalName>MSSQLTool.SortSelectedTextAscending</LocCanonicalName>
           <ToolTipText>对逗号分隔的选中文本按升序横向排序（按住 Shift 纵向换行）</ToolTipText>
@@ -389,6 +469,7 @@
         <CommandFlag>DefaultDisabled</CommandFlag>
         <Strings>
           <ButtonText>选中列表降序排序 (+Shift: 纵向)</ButtonText>
+          <CommandName>MSSQL Tool: 选中列表降序排序</CommandName>
           <CanonicalName>MSSQLTool.SortSelectedTextDescending</CanonicalName>
           <LocCanonicalName>MSSQLTool.SortSelectedTextDescending</LocCanonicalName>
           <ToolTipText>对逗号分隔的选中文本按降序横向排序（按住 Shift 纵向换行）</ToolTipText>
@@ -439,6 +520,51 @@
     <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="FindObjectInObjectExplorer" priority="0x0100">
       <Parent guid="guidMSSQLToolPackageCmdSet" id="SqlEditorContextMenuGroup" />
     </CommandPlacement>
+
+    <!-- Mirror groups into the main Tools -> MSSQL Tool top menu so they are discovered and categorized in SSMS Customize -> Add Command. -->
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Format" priority="0x0001">
+      <Parent guid="guidMSSQLToolPackageCmdSet" id="MSSQLToolTopMenu" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Copy" priority="0x0100">
+      <Parent guid="guidMSSQLToolPackageCmdSet" id="MSSQLToolTopMenu" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Export" priority="0x1000">
+      <Parent guid="guidMSSQLToolPackageCmdSet" id="MSSQLToolTopMenu" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Script2" priority="0x1001">
+      <Parent guid="guidMSSQLToolPackageCmdSet" id="MSSQLToolTopMenu" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Compare" priority="0x1002">
+      <Parent guid="guidMSSQLToolPackageCmdSet" id="MSSQLToolTopMenu" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Script" priority="0x2000">
+      <Parent guid="guidMSSQLToolPackageCmdSet" id="MSSQLToolTopMenu" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Health" priority="0x3000">
+      <Parent guid="guidMSSQLToolPackageCmdSet" id="MSSQLToolTopMenu" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_DataTransfer" priority="0x4000">
+      <Parent guid="guidMSSQLToolPackageCmdSet" id="MSSQLToolTopMenu" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_AI" priority="0x6000">
+      <Parent guid="guidMSSQLToolPackageCmdSet" id="MSSQLToolTopMenu" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Settings" priority="0x7000">
+      <Parent guid="guidMSSQLToolPackageCmdSet" id="MSSQLToolTopMenu" />
+    </CommandPlacement>
+
+    <!-- Toolbar standalone button placement: Settings as standalone button -->
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="SettingsButton" priority="0x0060">
+      <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolbarGroup" />
+    </CommandPlacement>
+
+    <!-- Also place QueryTemplatePicker and About in MSSQLToolTopMenu -->
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="QueryTemplatePickerCommand" priority="0x0050">
+      <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Script" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="AboutButton" priority="0x7010">
+      <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Settings" />
+    </CommandPlacement>
   </CommandPlacements>
 
   <KeyBindings>
@@ -465,6 +591,9 @@
 
       <IDSymbol name="Toolbar" value="0x1000" />
       <IDSymbol name="ToolbarGroup" value="0x2000" />
+
+      <IDSymbol name="MSSQLToolTopMenuGroup" value="0x120D" />
+      <IDSymbol name="MSSQLToolTopMenu" value="0x120E" />
 
       <IDSymbol name="FormatQueryButton" value="4131" />
       <IDSymbol name="RefreshCompletionMetadataButton" value="4146" />
