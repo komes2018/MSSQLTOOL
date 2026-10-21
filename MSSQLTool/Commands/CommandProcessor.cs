@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2006-2010 Jim Tilander. See COPYING for and README for more details.
+// Copyright (C) 2006-2010 Jim Tilander. See COPYING for and README for more details.
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -39,7 +39,7 @@ namespace Aurora
             try
             {
 
-                bool isShiftPressed = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
+                bool isShiftPressed = Keyboard.Modifiers == ModifierKeys.Shift;
                 QueryTemplateInsertionService.InsertFile(FullFileName, isShiftPressed);
             }
             catch (Exception ex)

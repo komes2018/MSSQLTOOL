@@ -1,4 +1,4 @@
-﻿using DocumentFormat.OpenXml.Office2013.Drawing.ChartStyle;
+using DocumentFormat.OpenXml.Office2013.Drawing.ChartStyle;
 using DocumentFormat.OpenXml.Spreadsheet;
 using EnvDTE;
 using EnvDTE80;
@@ -376,7 +376,7 @@ namespace MSSQLTool
                 }
             }
 
-            var isShiftPressed = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
+            var isShiftPressed = Keyboard.Modifiers == ModifierKeys.Shift;
             var resultText = isShiftPressed
                 ? BuildCompactInClause(values)
                 : $"({string.Join(",\r\n", values)})";

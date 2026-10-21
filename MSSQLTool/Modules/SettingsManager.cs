@@ -535,6 +535,91 @@ ORDER BY sd.[name];
             return SaveRegisterValue("QueryTemplateState", json ?? string.Empty);
         }
 
+        public class GeneralSettings
+        {
+            public bool alignNumericValuesToRight = true;
+            public bool selectQuotedStringOnDoubleClick = true;
+        }
+
+        public class ExcelExportSettings
+        {
+            public bool includeSourceQuery = false;
+            public bool addAutofilter = false;
+            public bool exportBoolsAsNumbers = false;
+            public string defaultDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            public string defaultFileName = "DataExport_{yyyyMMdd_HHmmss}.xlsx";
+
+            public string GetDefaultDirectory()
+            {
+                if (!string.IsNullOrEmpty(defaultDirectory) && Directory.Exists(defaultDirectory))
+                {
+                    return defaultDirectory;
+                }
+                return Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            }
+
+            public string GetDefaultFileName()
+            {
+                if (!string.IsNullOrWhiteSpace(defaultFileName))
+                {
+                    return defaultFileName;
+                }
+                return "DataExport_{yyyyMMdd_HHmmss}.xlsx";
+            }
+        }
+
+        public static ExcelExportSettings GetExcelExportSettings()
+        {
+            try
+            {
+                string json = GetRegisterValue("ExcelExportSettings");
+                if (string.IsNullOrEmpty(json))
+                    return new ExcelExportSettings();
+
+                var settings = JsonConvert.DeserializeObject<ExcelExportSettings>(json);
+                return settings ?? new ExcelExportSettings();
+            }
+            catch
+            {
+                return new ExcelExportSettings();
+            }
+        }
+
+        public static bool SaveExcelExportSettings(ExcelExportSettings settings)
+        {
+            try
+            {
+                string json = JsonConvert.SerializeObject(settings ?? new ExcelExportSettings());
+                return SaveRegisterValue("ExcelExportSettings", json);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static GeneralSettings GetGeneralSettings()
+        {
+            try
+            {
+                string json = GetRegisterValue("GeneralSettings");
+                if (!string.IsNullOrEmpty(json))
+                    return JsonConvert.DeserializeObject<GeneralSettings>(json) ?? new GeneralSettings();
+            }
+            catch { }
+            return new GeneralSettings();
+        }
+
+        public static bool SaveGeneralSettings(GeneralSettings settings)
+        {
+            try
+            {
+                string json = JsonConvert.SerializeObject(settings ?? new GeneralSettings());
+                return SaveRegisterValue("GeneralSettings", json);
+            }
+            catch { return false; }
+        }
+
         public static bool GetWarnWhenRunningFatalAction()
         {
             string value = GetRegisterValue("WarnWhenRunningFatalAction");

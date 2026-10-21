@@ -1,0 +1,59 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Windows;
+
+namespace MSSQLTool
+{
+    public partial class ExcelExportSuccessDialog : Microsoft.VisualStudio.PlatformUI.DialogWindow
+    {
+        private readonly ToolWindowThemeController _themeController;
+        private readonly string filePath;
+
+        public ExcelExportSuccessDialog(string filePath)
+        {
+            InitializeComponent();
+            LocalizationManager.Apply(this);
+
+            _themeController = new ToolWindowThemeController(this, ApplyThemeBrushResources);
+
+            this.filePath = filePath ?? string.Empty;
+            FilePathText.Text = this.filePath;
+        }
+
+        private void ApplyThemeBrushResources()
+        {
+            ToolWindowThemeResources.ApplySharedTheme(this);
+        }
+
+        private void OpenInExcelButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+            {
+                MessageBox.Show(this, LocalizationManager.T("The exported file could not be found."), LocalizationManager.T("Open in Excel"), MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                ProcessStartInfo processStartInfo = new ProcessStartInfo
+                {
+                    FileName = filePath,
+                    UseShellExecute = true
+                };
+
+                Process.Start(processStartInfo);
+                Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, LocalizationManager.T("Unable to open the exported file in Excel.") + "\n\n" + ex.Message, LocalizationManager.T("Open in Excel"), MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void OkButton_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
+    }
+}

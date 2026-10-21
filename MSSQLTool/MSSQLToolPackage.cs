@@ -26,6 +26,11 @@ using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Linq;
 using MSSQLTool.Properties;
+using Microsoft.VisualStudio.ComponentModelHost;
+using Microsoft.VisualStudio.Editor;
+using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.Text.Editor;
+using System.Windows.Input;
 
 namespace MSSQLTool
 {
@@ -47,6 +52,7 @@ namespace MSSQLTool
     /// </para>
     /// </remarks>
     [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
+    [ProvideBindingPath]
     [Guid(MSSQLToolPackage.PackageGuidString)]
     [ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string, PackageAutoLoadFlags.BackgroundLoad)]
     [ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string, PackageAutoLoadFlags.BackgroundLoad)]
@@ -55,7 +61,11 @@ namespace MSSQLTool
     [ProvideMenuResource("Menus.ctmenu", 1)]
     [ProvideToolWindow(typeof(SettingsWindow))]
     [ProvideToolWindow(typeof(AboutWindow))]
+    [ProvideToolWindow(typeof(ToolWindowGridToEmail), Style = VsDockStyle.MDI)]
     [ProvideToolWindow(typeof(HealthDashboard_Server))]
+    [ProvideToolWindow(typeof(DataCompare.DataCompareWindow), MultiInstances = true, Style = VsDockStyle.MDI)]
+    [ProvideToolWindow(typeof(PivotGrid.PivotGridWindow), MultiInstances = true, Style = VsDockStyle.MDI)]
+    [ProvideToolWindow(typeof(JobQuickView.JobQuickViewPane), MultiInstances = true, Style = VsDockStyle.MDI, DocumentLikeTool = true, Transient = true)]
     [ProvideToolWindow(typeof(DataTransferWindow))]
     [ProvideToolWindow(typeof(SqlServerBuildsWindow))]
     [ProvideToolWindow(typeof(QueryHistoryWindow))]
@@ -85,6 +95,7 @@ namespace MSSQLTool
         }
 
         public SQLBuildsData SQLBuildsDataInfo;
+        private JobQuickView.JobQuickViewCommand _jobQuickViewCommand;
 
         #region QueryHistory
 
@@ -370,6 +381,12 @@ namespace MSSQLTool
                 await SelectCurrentStatementCommand.InitializeAsync(this);
                 await ToggleBlockCommentCommand.InitializeAsync(this);
                 await QueryTemplateWindowCommand.InitializeAsync(this);
+                await SortSelectedTextCommand.InitializeAsync(this);
+                await ExportGridToExcelCommand.InitializeAsync(this);
+                await DataCompare.DataCompareWindowCommand.InitializeAsync(this);
+                await PivotGrid.PivotGridCommand.InitializeAsync(this);
+                await ToolWindowGridToEmailCommand.InitializeAsync(this);
+                _jobQuickViewCommand = await JobQuickView.JobQuickViewCommand.InitializeAsync(this);
 
                 UpdateChecker.ScheduleCheck(this, SettingsManager.GetEnableUpdateChecks());
 
@@ -491,6 +508,7 @@ namespace MSSQLTool
                     m_queryExecuteEvent = null;
                 }
                 QueryTemplateLibrary.Instance.Dispose();
+                _jobQuickViewCommand?.Dispose();
                 AppDomain.CurrentDomain.AssemblyResolve -= CurrentDomain_AssemblyResolve;
                 GridAccess.RestoreNativeAppearance();
                 FlushQueryHistory(TimeSpan.FromSeconds(3));
@@ -725,6 +743,7 @@ namespace MSSQLTool
                                 if (!existing.IsFor(textView)) existing.DismissCompletion();
                             }
                             EnsureCommandFilter(textView);
+                            AttachStringSelection(textView);
                         }
                     }
                 }
@@ -752,6 +771,49 @@ namespace MSSQLTool
                 _logger.Error(ex, "An exception occurred applying connection color");
             }
 
+        }
+
+        private static void AttachStringSelection(IVsTextView nativeView)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            var components = Package.GetGlobalService(typeof(SComponentModel)) as IComponentModel;
+            var view = components?.GetService<IVsEditorAdaptersFactoryService>()?.GetWpfTextView(nativeView);
+            if (view == null || view.IsClosed || view.Properties.ContainsProperty(typeof(SqlStringContent))) return;
+
+            view.VisualElement.PreviewMouseLeftButtonDown += OnMouseDown;
+            view.Closed += OnClosed;
+            view.Properties.AddProperty(typeof(SqlStringContent), true);
+
+            void OnMouseDown(object sender, MouseButtonEventArgs e)
+            {
+                if (e.ClickCount != 2 || Keyboard.Modifiers != ModifierKeys.None || view.IsClosed
+                    || !SettingsManager.GetGeneralSettings().selectQuotedStringOnDoubleClick) return;
+                try
+                {
+                    var mouse = e.GetPosition(view.VisualElement);
+                    var line = view.TextViewLines.GetTextViewLineContainingYCoordinate(mouse.Y + view.ViewportTop);
+                    var point = line?.GetBufferPositionFromXCoordinate(mouse.X + view.ViewportLeft);
+                    if (!point.HasValue) return;
+                    var snapshot = point.Value.Snapshot;
+                    if (!SqlStringContent.TryFind(snapshot.GetText(), point.Value.Position, out int start, out int length)) return;
+                    var span = new SnapshotSpan(snapshot, start, length);
+                    view.Selection.Mode = TextSelectionMode.Stream;
+                    view.Selection.Select(span, false);
+                    view.Caret.MoveTo(span.End);
+                    e.Handled = true;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Error(ex, "Failed to select SQL string contents on double click.");
+                }
+            }
+
+            void OnClosed(object sender, EventArgs e)
+            {
+                view.VisualElement.PreviewMouseLeftButtonDown -= OnMouseDown;
+                view.Closed -= OnClosed;
+                view.Properties.RemoveProperty(typeof(SqlStringContent));
+            }
         }
 
         internal KeypressCommandFilter EnsureCommandFilter(IVsTextView textView)

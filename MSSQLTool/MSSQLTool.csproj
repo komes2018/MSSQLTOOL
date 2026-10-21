@@ -82,6 +82,60 @@
     <Compile Include="SchemaCompare\SchemaCompareConnectionFactory.cs" />
     <Compile Include="SchemaCompare\SchemaCompareSettings.cs" />
     <Compile Include="SchemaCompare\SchemaReader.cs" />
+    <Compile Include="Modules\ExcelExport.cs" />
+    <Compile Include="Commands\ExportGridToExcelCommand.cs" />
+    <Compile Include="Commands\Dialogs\ExcelExportSuccessDialog.xaml.cs">
+      <DependentUpon>ExcelExportSuccessDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\ToolWindowDisplay.cs" />
+    <Compile Include="Modules\ObjectExplorerReflection.cs" />
+    <Compile Include="Modules\SelectedTextSorter.cs" />
+    <Compile Include="Modules\SqlEditorSupport.cs" />
+    <Compile Include="Modules\SqlStringContent.cs" />
+    <Compile Include="Commands\SortSelectedTextCommand.cs" />
+    <Compile Include="JobQuickView\JobQuickViewModels.cs" />
+    <Compile Include="JobQuickView\JobQuickViewService.cs" />
+    <Compile Include="JobQuickView\JobQuickViewCommand.cs" />
+    <Compile Include="JobQuickView\JobQuickViewPane.cs" />
+    <Compile Include="JobQuickView\JobQuickViewSelection.cs" />
+    <Compile Include="JobQuickView\JobCommandEditorSupport.cs" />
+    <Compile Include="JobQuickView\JobQuickViewWindow.xaml.cs">
+      <DependentUpon>JobQuickViewWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="DataCompare\ComparisonModel.cs" />
+    <Compile Include="DataCompare\ValueCodec.cs" />
+    <Compile Include="DataCompare\ComparisonStorage.cs" />
+    <Compile Include="DataCompare\ComparisonEngine.cs" />
+    <Compile Include="DataCompare\ComparisonCsv.cs" />
+    <Compile Include="DataCompare\SqlTableReader.cs" />
+    <Compile Include="DataCompare\SynchronizationScript.cs" />
+    <Compile Include="DataCompare\SqlSynchronizer.cs" />
+    <Compile Include="DataCompare\DataCompareWindow.cs" />
+    <Compile Include="DataCompare\DataCompareWindowCommand.cs" />
+    <Compile Include="DataCompare\DataCompareWindowControl.xaml.cs">
+      <DependentUpon>DataCompareWindowControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="DataCompare\ComparisonEndpointControl.xaml.cs">
+      <DependentUpon>ComparisonEndpointControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="DataCompare\SqlConnectionDialog.xaml.cs">
+      <DependentUpon>SqlConnectionDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="PivotGrid\PivotDetailsWindow.xaml.cs">
+      <DependentUpon>PivotDetailsWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="PivotGrid\PivotEngine.cs" />
+    <Compile Include="PivotGrid\PivotGridSnapshot.cs" />
+    <Compile Include="PivotGrid\PivotGridCommand.cs" />
+    <Compile Include="PivotGrid\PivotGridWindow.cs" />
+    <Compile Include="PivotGrid\PivotGridWindowControl.xaml.cs">
+      <DependentUpon>PivotGridWindowControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="GridToEmail\ToolWindowGridToEmail.cs" />
+    <Compile Include="GridToEmail\ToolWindowGridToEmailCommand.cs" />
+    <Compile Include="GridToEmail\ToolWindowGridToEmailControl.xaml.cs">
+      <DependentUpon>ToolWindowGridToEmailControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="SchemaCompare\SchemaComparer.cs" />
     <Compile Include="SchemaCompare\SchemaCompareWindow.cs" />
     <Compile Include="SchemaCompare\SchemaCompareWindowCommand.cs" />
@@ -507,6 +561,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="NReco.PivotData">
+      <Version>1.5.1</Version>
+    </PackageReference>
     <PackageReference Include="NLog">
       <Version>6.1.4</Version>
     </PackageReference>
@@ -590,9 +647,23 @@
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
     <Content Include="Resources\wizard.png" />
+    <Content Include="Resources\excel.png" />
+    <Content Include="Resources\export-data.png" />
+    <Content Include="Resources\grid-to-email.png" />
+    <Content Include="Resources\pivot-table.png" />
+    <Content Include="Resources\sort-ascending.png" />
+    <Content Include="Resources\sort-descending.png" />
+    <Content Include="ThirdPartyNotices\NReco.PivotData-LICENSE.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <Page Include="Commands\Dialogs\FormatOptionsDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Commands\Dialogs\ExcelExportSuccessDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -669,6 +740,34 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Themes\SharedToolWindowTheme.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="JobQuickView\JobQuickViewWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="DataCompare\DataCompareWindowControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="DataCompare\ComparisonEndpointControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="DataCompare\SqlConnectionDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="PivotGrid\PivotDetailsWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="PivotGrid\PivotGridWindowControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="GridToEmail\ToolWindowGridToEmailControl.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

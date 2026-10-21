@@ -1300,29 +1300,48 @@ namespace MSSQLTool
 
         private static void RemoveNewLineAfterJoinCase(IList<TSqlParserToken> tokens, List<QualifiedJoin> qualifiedJoins)
         {
-            foreach (QualifiedJoin QJoin in qualifiedJoins)
+            foreach (QualifiedJoin qJoin in qualifiedJoins)
             {
-                int NextTokenNumber = QJoin.SecondTableReference.FirstTokenIndex;
+                int secondTableIndex = qJoin.SecondTableReference.FirstTokenIndex;
+                int joinTokenIndex = -1;
 
-                while (true)
+                // Find the JOIN token that belongs to this qualified join.
+                for (int i = secondTableIndex - 1; i >= qJoin.FirstTokenIndex && i >= 0; i--)
                 {
-                    TSqlParserToken NextToken = tokens[NextTokenNumber - 1];
-
-                    if (NextToken.TokenType == TSqlTokenType.WhiteSpace)
-                        if (NextToken.Text == "\r\n")
-                            NextToken.Text = " ";
-                        else if (NextToken.Text.Trim() == "")
-                            NextToken.Text = "";
-
-                    if (NextToken.TokenType == TSqlTokenType.Join)
+                    if (tokens[i].TokenType == TSqlTokenType.Join)
+                    {
+                        joinTokenIndex = i;
                         break;
-
-                    NextTokenNumber -= 1;
-
-                    //just in case
-                    if (NextTokenNumber < 1)
-                        break;
+                    }
                 }
+
+                if (joinTokenIndex < 0 || joinTokenIndex + 1 >= secondTableIndex)
+                    continue;
+
+                // Only collapse a pure whitespace gap. If a comment or any other token is
+                // between JOIN and the table reference, leave it untouched.
+                bool hasNewLine = false;
+                for (int i = joinTokenIndex + 1; i < secondTableIndex; i++)
+                {
+                    var token = tokens[i];
+                    if (token.TokenType != TSqlTokenType.WhiteSpace)
+                    {
+                        hasNewLine = false;
+                        break;
+                    }
+
+                    if (token.Text.IndexOf('\r') >= 0 || token.Text.IndexOf('\n') >= 0)
+                        hasNewLine = true;
+                }
+
+                // If no newline to collapse, leave it untouched.
+                if (!hasNewLine)
+                    continue;
+
+                // Collapse the whitespace span to exactly one space.
+                tokens[joinTokenIndex + 1].Text = " ";
+                for (int i = joinTokenIndex + 2; i < secondTableIndex; i++)
+                    tokens[i].Text = string.Empty;
             }
         }
 

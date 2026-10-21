@@ -77,6 +77,10 @@
         <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenu" />
       </Group>
 
+      <Group guid="guidMSSQLToolPackageCmdSet" id="SqlEditorContextMenuGroup" priority="0x6000">
+        <Parent guid="guidSqlWorkbenchEditorGroup" id="IDM_SQLWB_SQLSCRIPT_CONTEXT" />
+      </Group>
+
     </Groups>
 
     <Menus>
@@ -128,6 +132,28 @@
       </Button>
       
       <!-- TOOLS Submenu buttons -->
+      <Button guid="guidMSSQLToolPackageCmdSet" id="ExportButtonGridToExcel" priority="0x0090" type="Button">
+        <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Export" />
+        <Icon guid="guidExcel" id="bmpExcel" />
+        <CommandFlag>IconAndText</CommandFlag>
+        <Strings>
+          <ButtonText>将网格导出为 Excel</ButtonText>
+          <LocCanonicalName>MSSQLTool.ExportGridToExcel</LocCanonicalName>
+          <ToolTipText>将当前结果网格导出为 Excel 文件（按住 Shift 可直接静默导出并打开）</ToolTipText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidMSSQLToolPackageCmdSet" id="ExportButtonGridToExcelAndEmail" priority="0x0100" type="Button">
+        <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Export" />
+        <Icon guid="guidExportGridToEmail" id="bmpExportGridToEmail" />
+        <CommandFlag>IconAndText</CommandFlag>
+        <Strings>
+          <ButtonText>将网格导出并通过邮件发送</ButtonText>
+          <LocCanonicalName>MSSQLTool.ExportGridToEmail</LocCanonicalName>
+          <ToolTipText>将当前结果网格导出并通过邮件发送</ToolTipText>
+        </Strings>
+      </Button>
+
       <Button guid="guidMSSQLToolPackageCmdSet" id="ExportGridAsInserts" priority="0x0110" type="Button">
         <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Export" />
         <Icon guid="guidExportGridToTempTable" id="bmpExportGridToTempTable" />
@@ -135,6 +161,17 @@
         <Strings>
           <ButtonText>将结果网格导出为临时表</ButtonText>
           <LocCanonicalName>MSSQLTool.ExportGridAsTempTable</LocCanonicalName>
+        </Strings>
+      </Button>
+
+      <Button guid="guidMSSQLToolPackageCmdSet" id="ExportGridToPivotTable" priority="0x0120" type="Button">
+        <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Export" />
+        <Icon guid="guidPivotTable" id="bmpPivotTable" />
+        <CommandFlag>IconAndText</CommandFlag>
+        <Strings>
+          <ButtonText>导出网格到透视表</ButtonText>
+          <LocCanonicalName>MSSQLTool.ExportGridToPivotTable</LocCanonicalName>
+          <ToolTipText>在新的透视表窗口中汇总分析当前查询结果</ToolTipText>
         </Strings>
       </Button>
       
@@ -145,6 +182,18 @@
         <Strings>
           <ButtonText>在新窗口生成对象定义脚本</ButtonText>
           <LocCanonicalName>MSSQLTool.ScriptSelectedObject</LocCanonicalName>
+        </Strings>
+      </Button>
+
+      <Button guid="guidMSSQLToolPackageCmdSet" id="FindObjectInObjectExplorer" priority="0x0210" type="Button">
+        <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Script" />
+        <Icon guid="guidSearch" id="bmpSearch" />
+        <CommandFlag>IconAndText</CommandFlag>
+        <Strings>
+          <ButtonText>在对象资源管理器中定位</ButtonText>
+          <CanonicalName>MSSQLTool.OpenInObjectExplorer</CanonicalName>
+          <LocCanonicalName>MSSQLTool.OpenInObjectExplorer</LocCanonicalName>
+          <ToolTipText>在对象资源管理器中定位选中的对象或光标处的对象</ToolTipText>
         </Strings>
       </Button>
       
@@ -280,6 +329,17 @@
         </Strings>
       </Button>
 
+      <Button guid="guidMSSQLToolPackageCmdSet" id="DataCompareCommand" priority="0x0010" type="Button">
+        <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Compare" />
+        <Icon guid="guidDataTransfer" id="bmpDataTransfer" />
+        <CommandFlag>IconAndText</CommandFlag>
+        <Strings>
+          <ButtonText>数据对比</ButtonText>
+          <LocCanonicalName>MSSQLTool.DataCompare</LocCanonicalName>
+          <ToolTipText>对比两个表中的数据行并同步选定的差异</ToolTipText>
+        </Strings>
+      </Button>
+
       <Button guid="guidMSSQLToolPackageCmdSet" id="SettingsButton" priority="0x0000" type="Button">
         <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Settings" />
         <Icon guid="guidImagesSettings" id="bmpSettings" />        
@@ -293,6 +353,45 @@
         <Icon guid="guidInfo" id="bmpInfo" />
         <Strings>
           <ButtonText>关于</ButtonText>
+        </Strings>
+      </Button>
+
+      <!-- Keep the command registered without a toolbar/menu placement.
+           Quick Manage is exposed on SQL Agent job context menus. -->
+      <Button guid="guidMSSQLToolPackageCmdSet" id="JobQuickViewCommand" priority="0x0100" type="Button">
+        <Icon guid="guidImagesSettings" id="bmpSettings" />
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>作业快速管理</ButtonText>
+          <CanonicalName>MSSQLTool.JobQuickView</CanonicalName>
+          <LocCanonicalName>MSSQLTool.JobQuickView</LocCanonicalName>
+          <ToolTipText>快速管理在对象资源管理器中选中的 SQL Server Agent 作业</ToolTipText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidMSSQLToolPackageCmdSet" id="SortSelectedTextAscending" priority="0x0200" type="Button">
+        <Parent guid="guidMSSQLToolPackageCmdSet" id="SqlEditorContextMenuGroup" />
+        <Icon guid="guidSortAscending" id="bmpSortAscending" />
+        <CommandFlag>IconAndText</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>选中列表升序排序 (+Shift: 纵向)</ButtonText>
+          <CanonicalName>MSSQLTool.SortSelectedTextAscending</CanonicalName>
+          <LocCanonicalName>MSSQLTool.SortSelectedTextAscending</LocCanonicalName>
+          <ToolTipText>对逗号分隔的选中文本按升序横向排序（按住 Shift 纵向换行）</ToolTipText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidMSSQLToolPackageCmdSet" id="SortSelectedTextDescending" priority="0x0210" type="Button">
+        <Parent guid="guidMSSQLToolPackageCmdSet" id="SqlEditorContextMenuGroup" />
+        <Icon guid="guidSortDescending" id="bmpSortDescending" />
+        <CommandFlag>IconAndText</CommandFlag>
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings>
+          <ButtonText>选中列表降序排序 (+Shift: 纵向)</ButtonText>
+          <CanonicalName>MSSQLTool.SortSelectedTextDescending</CanonicalName>
+          <LocCanonicalName>MSSQLTool.SortSelectedTextDescending</LocCanonicalName>
+          <ToolTipText>对逗号分隔的选中文本按降序横向排序（按住 Shift 纵向换行）</ToolTipText>
         </Strings>
       </Button>
 
@@ -324,12 +423,28 @@
       <Bitmap guid="guidSelect" href="Resources\select.png" usedList="bmpSelect" />
       <Bitmap guid="guidSnippet" href="Resources\snippet.png" usedList="bmpSnippet" />
       <Bitmap guid="guidToggleBlockComment" href="Resources\toggle-comment.png" usedList="bmpToggleBlockComment" />
+      <Bitmap guid="guidExportGridToEmail" href="Resources\grid-to-email.png" usedList="bmpExportGridToEmail" />
+      <Bitmap guid="guidSortAscending" href="Resources\sort-ascending.png" usedList="bmpSortAscending" />
+      <Bitmap guid="guidSortDescending" href="Resources\sort-descending.png" usedList="bmpSortDescending" />
+      <Bitmap guid="guidPivotTable" href="Resources\pivot-table.png" usedList="bmpPivotTable" />
+      <Bitmap guid="guidExcel" href="Resources\excel.png" usedList="bmpExcel" />
     </Bitmaps>    
   </Commands>
 
+  <CommandPlacements>
+    <!-- Mirror the entire export group into the results grid menu. -->
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Export" priority="0x6000">
+      <Parent guid="guidSqlWorkbenchEditorGroup" id="IDM_SQLWB_SQLRESGRID_CONTEXT" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidMSSQLToolPackageCmdSet" id="FindObjectInObjectExplorer" priority="0x0100">
+      <Parent guid="guidMSSQLToolPackageCmdSet" id="SqlEditorContextMenuGroup" />
+    </CommandPlacement>
+  </CommandPlacements>
 
   <KeyBindings>
     <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="FormatQueryButton" editor="guidVSStd97" key1="F" mod1="Control Shift Alt" />
+    <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="ExportButtonGridToExcel" editor="guidVSStd97" key1="E" mod1="Control Shift Alt" />
+    <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="ExportButtonGridToExcelAndEmail" editor="guidVSStd97" key1="M" mod1="Control Shift Alt" />
     <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="ScriptCurrentObject" editor="guidSqlQueryEditor" key1="VK_F12" />
     <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="ExportGridAsInserts" editor="guidVSStd97" key1="T" mod1="Control Shift Alt" />
     <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="SelectCurrentStatementCommand" editor="guidVSStd97" key1="VK_F5" mod1="Shift" />
@@ -397,6 +512,15 @@
 
       <IDSymbol name="SnippetManagerCommand" value="4153" />
 
+      <IDSymbol name="ExportButtonGridToExcel" value="4133" />
+      <IDSymbol name="ExportButtonGridToExcelAndEmail" value="4139" />
+      <IDSymbol name="FindObjectInObjectExplorer" value="4135" />
+      <IDSymbol name="ExportGridToPivotTable" value="4159" />
+      <IDSymbol name="JobQuickViewCommand" value="4160" />
+      <IDSymbol name="DataCompareCommand" value="4166" />
+      <IDSymbol name="SortSelectedTextAscending" value="4167" />
+      <IDSymbol name="SortSelectedTextDescending" value="4168" />
+
     </GuidSymbol>
 
     <GuidSymbol name="guidImagesSettings" value="{fef3eb91-5bef-4fcc-8230-c1289c09b4c1}">
@@ -452,6 +576,28 @@
     </GuidSymbol>
     <GuidSymbol name="guidToggleBlockComment" value="{fef3eb91-5bef-4fcc-8230-c1289c09b4e2}">
       <IDSymbol name="bmpToggleBlockComment" value="1" />
+    </GuidSymbol>
+
+    <!-- SQLEditors.dll: SQLWorkbenchCommands.GUID_SQLEditorGroup and its context menu IDs. -->
+    <GuidSymbol name="guidSqlWorkbenchEditorGroup" value="{33F13AC3-80BB-4ECB-85BC-225435603A5E}">
+      <IDSymbol name="IDM_SQLWB_SQLSCRIPT_CONTEXT" value="0x0050" />
+      <IDSymbol name="IDM_SQLWB_SQLRESGRID_CONTEXT" value="0x0070" />
+    </GuidSymbol>
+
+    <GuidSymbol name="guidExportGridToEmail" value="{fef3eb91-5bef-4fcc-8230-c1289c09b4d0}">
+      <IDSymbol name="bmpExportGridToEmail" value="1" />
+    </GuidSymbol>
+    <GuidSymbol name="guidSortAscending" value="{fef3eb91-5bef-4fcc-8230-c1289c09b4e3}">
+      <IDSymbol name="bmpSortAscending" value="1" />
+    </GuidSymbol>
+    <GuidSymbol name="guidSortDescending" value="{fef3eb91-5bef-4fcc-8230-c1289c09b4e4}">
+      <IDSymbol name="bmpSortDescending" value="1" />
+    </GuidSymbol>
+    <GuidSymbol name="guidPivotTable" value="{c032f833-8bc7-4c8d-8b89-0df7fbd89b1a}">
+      <IDSymbol name="bmpPivotTable" value="1" />
+    </GuidSymbol>
+    <GuidSymbol name="guidExcel" value="{c032f833-8bc7-4c8d-8b89-0df7fbd89b1b}">
+      <IDSymbol name="bmpExcel" value="1" />
     </GuidSymbol>
 
 
