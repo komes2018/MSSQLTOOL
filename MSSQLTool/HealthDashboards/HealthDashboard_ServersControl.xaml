@@ -23,7 +23,7 @@
                 <TextBlock Margin="10" HorizontalAlignment="Left" VerticalAlignment="Center">
                     <Run Text="Feature description in"/>
                     <Run Text=" "/>
-                    <Hyperlink NavigateUri="https://github.com/PuLuShen/MSSQLTOOL/wiki/Server-Health-Dashboard"
+                    <Hyperlink NavigateUri="https://github.com/komes2018/MSSQLTOOL/wiki/Server-Health-Dashboard"
                                RequestNavigate="WikiLink_RequestNavigate">
                         <Run Text="Wiki"/>
                     </Hyperlink>

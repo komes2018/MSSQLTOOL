@@ -21,8 +21,8 @@ namespace MSSQLTool
     {
         private const string ProductName = "MSSQLTool";
         private const string DisplayName = "MSSQL Tool";
-        private const string ReleasesApiUrl = "https://api.github.com/repos/PuLuShen/MSSQLTOOL/releases/latest";
-        private const string ReleasePageUrl = "https://github.com/PuLuShen/MSSQLTOOL/releases/latest";
+        private const string ReleasesApiUrl = "https://api.github.com/repos/komes2018/MSSQLTOOL/releases/latest";
+        private const string ReleasePageUrl = "https://github.com/komes2018/MSSQLTOOL/releases/latest";
         private const string StagedVsixFilePattern = "MSSQLTool-*.vsix";
         private const string StagedZipFilePattern = "MSSQLTool-*.zip";
         private const string ExpectedVsixName = "MSSQLTool.vsix";

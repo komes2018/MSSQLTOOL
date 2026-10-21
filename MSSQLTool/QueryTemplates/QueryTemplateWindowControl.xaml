@@ -160,9 +160,9 @@
                             Margin="0,8,0,0">
                     <TextBlock Text="Useful TSQL scripts" VerticalAlignment="Center" />
                     <TextBlock Margin="6,0,0,0" VerticalAlignment="Center">
-                        <Hyperlink NavigateUri="https://github.com/PuLuShen/MSSQLTOOL"
+                        <Hyperlink NavigateUri="https://github.com/komes2018/MSSQLTOOL"
                                    RequestNavigate="GitHubRepositoryLink_Click">
-                            <Run Text="https://github.com/PuLuShen/MSSQLTOOL" />
+                            <Run Text="https://github.com/komes2018/MSSQLTOOL" />
                         </Hyperlink>
                     </TextBlock>
                     <Button Content="Download TSQL scripts from GitHub" Margin="14,0,0,0" Padding="9,2"

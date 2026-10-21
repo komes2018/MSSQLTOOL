@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("MSSQL Tool")]
 [assembly: AssemblyDescription("A productivity-enhancing tool for SQL Server Management Studio 22")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("PuLuShen")]
+[assembly: AssemblyCompany("komes2018")]
 [assembly: AssemblyProduct("MSSQL Tool")]
 [assembly: AssemblyCopyright("")]
 [assembly: AssemblyTrademark("")]
@@ -29,8 +29,8 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("4.78.0.0")]
-[assembly: AssemblyFileVersion("4.78.0.0")]
+[assembly: AssemblyVersion("4.79.0.0")]
+[assembly: AssemblyFileVersion("4.79.0.0")]
 
 // The regression test console exercises internal completion types and
 // therefore needs access to the plugin's internals.

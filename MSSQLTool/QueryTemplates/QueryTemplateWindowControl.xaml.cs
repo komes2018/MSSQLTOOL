@@ -22,7 +22,7 @@ namespace MSSQLTool
 {
     public partial class QueryTemplateWindowControl : UserControl
     {
-        private const string GitHubQueryLibraryZipUrl = "https://github.com/PuLuShen/MSSQLTOOL/archive/main.zip";
+        private const string GitHubQueryLibraryZipUrl = "https://github.com/komes2018/MSSQLTOOL/archive/main.zip";
         private const string GitHubQueryLibraryFolderInZip = "MSSQLTOOL-main/query-library";
 
         private readonly ToolWindowThemeController themeController;

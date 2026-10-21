@@ -43,7 +43,7 @@
                        VerticalAlignment="Center">
                 <Run Text="Feature description in" />
                 <Run Text=" " />
-                <Hyperlink NavigateUri="https://github.com/PuLuShen/MSSQLTOOL/wiki/Statistics-Summary"
+                <Hyperlink NavigateUri="https://github.com/komes2018/MSSQLTOOL/wiki/Statistics-Summary"
                            RequestNavigate="WikiLink_RequestNavigate">
                     <Run Text="Wiki" />
                 </Hyperlink>

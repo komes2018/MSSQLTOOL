@@ -27,7 +27,7 @@
                     <TextBlock Margin="10" HorizontalAlignment="left" >
                         <Run Text="Feature description in"/>
 				        <Hyperlink
-					        NavigateUri="https://github.com/PuLuShen/MSSQLTOOL/wiki/Sync-to-GitHub"
+					        NavigateUri="https://github.com/komes2018/MSSQLTOOL/wiki/Sync-to-GitHub"
 					        RequestNavigate="buttonWikiPage_Click">
 				            <Run Text="Wiki"/>
                         </Hyperlink>

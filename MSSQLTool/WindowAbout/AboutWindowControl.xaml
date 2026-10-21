@@ -132,22 +132,22 @@
                     <StackPanel>
                         <TextBlock Text="Current project" FontSize="16" FontWeight="SemiBold" />
                         <TextBlock Margin="0,10,0,0" FontSize="13">
-                            <Hyperlink NavigateUri="https://github.com/PuLuShen/MSSQLTOOL" RequestNavigate="Hyperlink_RequestNavigate">
+                            <Hyperlink NavigateUri="https://github.com/komes2018/MSSQLTOOL" RequestNavigate="Hyperlink_RequestNavigate">
                                 <Run Text="Source repository" />
                             </Hyperlink>
                         </TextBlock>
                         <TextBlock Margin="0,8,0,0" FontSize="13">
-                            <Hyperlink NavigateUri="https://github.com/PuLuShen/MSSQLTOOL/issues" RequestNavigate="Hyperlink_RequestNavigate">
+                            <Hyperlink NavigateUri="https://github.com/komes2018/MSSQLTOOL/issues" RequestNavigate="Hyperlink_RequestNavigate">
                                 <Run Text="Issues and feature requests" />
                             </Hyperlink>
                         </TextBlock>
                         <TextBlock Margin="0,8,0,0" FontSize="13">
-                            <Hyperlink NavigateUri="https://github.com/PuLuShen/MSSQLTOOL/releases" RequestNavigate="Hyperlink_RequestNavigate">
+                            <Hyperlink NavigateUri="https://github.com/komes2018/MSSQLTOOL/releases" RequestNavigate="Hyperlink_RequestNavigate">
                                 <Run Text="Releases" />
                             </Hyperlink>
                         </TextBlock>
                         <TextBlock Margin="0,8,0,0" FontSize="13">
-                            <Hyperlink NavigateUri="https://github.com/PuLuShen/MSSQLTOOL/blob/main/LICENSE" RequestNavigate="Hyperlink_RequestNavigate">
+                            <Hyperlink NavigateUri="https://github.com/komes2018/MSSQLTOOL/blob/main/LICENSE" RequestNavigate="Hyperlink_RequestNavigate">
                                 <Run Text="Apache License 2.0" />
                             </Hyperlink>
                         </TextBlock>

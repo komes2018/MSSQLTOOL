@@ -285,7 +285,7 @@
                     <TextBlock Grid.Row="0" Margin="5" HorizontalAlignment="Left">
                         <Run Text="Feature description in"/>
                         <Hyperlink
-                            NavigateUri="https://github.com/PuLuShen/MSSQLTOOL/wiki/TSQL-Code-Formatting-with-Microsoft-ScriptDOM-library"
+                            NavigateUri="https://github.com/komes2018/MSSQLTOOL/wiki/TSQL-Code-Formatting-with-Microsoft-ScriptDOM-library"
                             RequestNavigate="buttonWikiPage_Click">
                             <Run Text="Wiki"/>
                         </Hyperlink>

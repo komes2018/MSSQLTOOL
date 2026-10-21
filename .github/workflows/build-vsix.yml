@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -194,3 +194,22 @@ jobs:
           if-no-files-found: error
           overwrite: true
           retention-days: 14
+
+      - name: Publish GitHub Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.package.outputs.version }}
+          name: MSSQL Tool v${{ steps.package.outputs.version }}
+          body: |
+            ## MSSQL Tool v${{ steps.package.outputs.version }}
+            - 智能 SQL 自动补全支持 Enter 键直接录入上屏（可在设置中开关）
+            - 支持自定义高频缩写（如 `ssf` -> `SELECT * FROM`）及代码片段管理器
+            - 支持按住 Ctrl 键时在可跳转对象下方绘制下划线与手形光标，点击即转到定义（F12）
+            - 彻底修复操作数据安全告警弹窗黑底黑字高对比度主题问题
+            - 支持 SSMS 18 / 19 / 20 / 21 / 22
+          files: dist/*.vsix
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
