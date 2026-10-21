@@ -57,6 +57,21 @@ namespace MSSQLTool
             return 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;
         }
 
+        // Preserve a semantic color where possible, including on custom themes.
+        public static Color EnsureTextContrast(Color color, Color background, Color fallback)
+        {
+            double backgroundLuminance = GetRelativeLuminance(background);
+            for (int step = 0; step <= 20; step++)
+            {
+                Color candidate = BlendColors(color, fallback, step / 20.0);
+                double luminance = GetRelativeLuminance(candidate);
+                double contrast = (Math.Max(luminance, backgroundLuminance) + 0.05)
+                    / (Math.Min(luminance, backgroundLuminance) + 0.05);
+                if (contrast >= 4.5) return candidate;
+            }
+            return fallback;
+        }
+
         public static Color BlendColors(Color baseColor, Color blendColor, double blendAmount)
         {
             blendAmount = Math.Max(0.0, Math.Min(1.0, blendAmount));

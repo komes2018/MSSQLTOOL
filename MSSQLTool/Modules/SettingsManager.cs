@@ -598,6 +598,51 @@ ORDER BY sd.[name];
             }
         }
 
+        public static string GetMyEmail()
+        {
+            return GetRegisterValue("MyEmail") ?? string.Empty;
+        }
+
+        public static bool SaveMyEmail(string myEmail)
+        {
+            return SaveRegisterValue("MyEmail", myEmail ?? string.Empty);
+        }
+
+        public class SmtpSettings
+        {
+            public bool hasBeenConfiguredAndTested;
+            public string Username = string.Empty;
+            public string Password = string.Empty;
+            public string ServerName = string.Empty;
+            public int Port = 587;
+            public bool EnableSsl = true;
+        }
+
+        public static SmtpSettings GetSmtpSettings()
+        {
+            try
+            {
+                string json = GetRegisterValue("SmtpSettings");
+                if (!string.IsNullOrEmpty(json))
+                    return JsonConvert.DeserializeObject<SmtpSettings>(json) ?? new SmtpSettings();
+            }
+            catch { }
+            return new SmtpSettings();
+        }
+
+        public static bool SaveSmtpSettings(SmtpSettings smtpSettings)
+        {
+            try
+            {
+                string json = JsonConvert.SerializeObject(smtpSettings ?? new SmtpSettings());
+                return SaveRegisterValue("SmtpSettings", json);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         public static GeneralSettings GetGeneralSettings()
         {
             try

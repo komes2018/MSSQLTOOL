@@ -556,12 +556,8 @@ namespace MSSQLTool.JobQuickView
             UpdateActions();
             try
             {
-                var settings = SettingsManager.GetTSqlCodeFormatSettings();
-                // Operational comments must survive a command-only edit. This settings copy is not persisted.
-                settings.preserveComments = true;
-                // Global settings work even when no ordinary SSMS query tab is open.
-                var formatter = await SsmsFormatterHost.CreateAsync(null, token, settings.disregardSsmsFormatterSettings);
-                string formatted = await Task.Run(() => TSqlFormatter.FormatCode(source, settings, formatter.Parser, formatter.Generator), token);
+                var settings = SettingsManager.GetFormatSettings();
+                string formatted = await Task.Run(() => TSqlFormatter.FormatCode(source, settings), token);
                 token.ThrowIfCancellationRequested();
                 if (!string.Equals(source, formatted, StringComparison.Ordinal))
                 {
