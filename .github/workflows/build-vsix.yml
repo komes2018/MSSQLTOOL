@@ -141,7 +141,7 @@ jobs:
             /m `
             /t:Rebuild `
             /p:Configuration=Release `
-            /p:Platform="Any CPU" `
+            /p:Platform=AnyCPU `
             /p:DeployExtension=false `
             /p:PostBuildEvent=
 
