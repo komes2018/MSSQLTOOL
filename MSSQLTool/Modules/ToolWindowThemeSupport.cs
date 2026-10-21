@@ -86,9 +86,11 @@ namespace MSSQLTool
     {
         public static void ApplySharedTheme(FrameworkElement control)
         {
-            Brush bg = VsThemeBrushResolver.ResolveBrush(control, EnvironmentColors.ToolWindowBackgroundBrushKey)
+            Brush bg = VsThemeBrushResolver.ResolveBrush(control, EnvironmentColors.DialogBackgroundBrushKey)
+                ?? VsThemeBrushResolver.ResolveBrush(control, EnvironmentColors.ToolWindowBackgroundBrushKey)
                 ?? SystemColors.WindowBrush;
-            Brush fg = VsThemeBrushResolver.ResolveBrush(control, EnvironmentColors.ToolWindowTextBrushKey)
+            Brush fg = VsThemeBrushResolver.ResolveBrush(control, EnvironmentColors.DialogTextBrushKey)
+                ?? VsThemeBrushResolver.ResolveBrush(control, EnvironmentColors.ToolWindowTextBrushKey)
                 ?? SystemColors.WindowTextBrush;
             Brush border = VsThemeBrushResolver.ResolveBrush(control, EnvironmentColors.ToolWindowBorderBrushKey)
                 ?? SystemColors.ActiveBorderBrush;
@@ -104,9 +106,27 @@ namespace MSSQLTool
 
             Color bgColor = VsThemeBrushResolver.GetBrushColor(bg, Colors.White);
             Color fgColor = VsThemeBrushResolver.GetBrushColor(fg, Colors.Black);
-            Color accentColor = VsThemeBrushResolver.GetBrushColor(accent, Color.FromRgb(0x00, 0x7A, 0xCC));
-            Color successColor = VsThemeBrushResolver.GetBrushColor(success, Color.FromRgb(0x10, 0x7C, 0x10));
-            Color errorColor = VsThemeBrushResolver.GetBrushColor(error, Color.FromRgb(0xA1, 0x26, 0x0D));
+
+            // Contrast safety check: avoid dark-on-dark or light-on-light unreadable states
+            double bgLum = VsThemeBrushResolver.GetRelativeLuminance(bgColor);
+            double fgLum = VsThemeBrushResolver.GetRelativeLuminance(fgColor);
+            double contrast = (Math.Max(bgLum, fgLum) + 0.05) / (Math.Min(bgLum, fgLum) + 0.05);
+            if (contrast < 3.0)
+            {
+                if (bgLum < 0.5)
+                {
+                    fgColor = Colors.White;
+                    fg = new SolidColorBrush(Colors.White);
+                }
+                else
+                {
+                    bgColor = Colors.White;
+                    bg = new SolidColorBrush(Colors.White);
+                    fgColor = Color.FromRgb(0x1E, 0x1E, 0x1E);
+                    fg = new SolidColorBrush(fgColor);
+                }
+            }
+
             bool isLightTheme = VsThemeBrushResolver.GetRelativeLuminance(bgColor) > 0.6;
 
             Color headerColor = isLightTheme
@@ -181,6 +201,9 @@ namespace MSSQLTool
 
             control.Resources["ToolThemeBackgroundBrush"] = bg;
             control.Resources["ToolThemeForegroundBrush"] = fg;
+            control.Resources["AxialThemeBackgroundBrush"] = bg;
+            control.Resources["AxialThemeForegroundBrush"] = fg;
+            control.Resources["AxialThemeGridHeaderBackgroundBrush"] = new SolidColorBrush(gridHeaderColor);
             control.Resources["ToolThemeBorderBrush"] = border;
             control.Resources["ToolThemeSubtleBorderBrush"] = new SolidColorBrush(subtleBorderColor);
             control.Resources["ToolThemeHeaderBackgroundBrush"] = new SolidColorBrush(headerColor);
@@ -211,6 +234,13 @@ namespace MSSQLTool
             control.Resources["ToolThemeDiffDeletedForegroundBrush"] = new SolidColorBrush(diffDeletedForegroundColor);
             control.Resources["ToolThemeDiffModifiedBackgroundBrush"] = new SolidColorBrush(diffModifiedBackgroundColor);
             control.Resources["ToolThemeDiffModifiedForegroundBrush"] = new SolidColorBrush(diffModifiedForegroundColor);
+
+            if (control is Window window)
+            {
+                window.Background = bg;
+                window.Foreground = fg;
+            }
+
             LocalizationManager.Apply(control);
         }
     }

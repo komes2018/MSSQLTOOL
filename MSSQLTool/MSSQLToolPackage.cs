@@ -31,6 +31,8 @@ using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using System.Windows.Input;
+using System.Windows.Documents;
+using MSSQLTool.Modules;
 
 namespace MSSQLTool
 {
@@ -780,16 +782,116 @@ namespace MSSQLTool
             var view = components?.GetService<IVsEditorAdaptersFactoryService>()?.GetWpfTextView(nativeView);
             if (view == null || view.IsClosed || view.Properties.ContainsProperty(typeof(SqlStringContent))) return;
 
-            view.VisualElement.PreviewMouseLeftButtonDown += OnMouseDown;
-            view.Closed += OnClosed;
-            view.Properties.AddProperty(typeof(SqlStringContent), true);
+            AdornerLayer adornerLayer = null;
+            HyperlinkUnderlineAdorner underlineAdorner = null;
+            try
+            {
+                adornerLayer = AdornerLayer.GetAdornerLayer(view.VisualElement);
+                if (adornerLayer != null)
+                {
+                    underlineAdorner = new HyperlinkUnderlineAdorner(view.VisualElement);
+                    adornerLayer.Add(underlineAdorner);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error(ex, "Failed to initialize HyperlinkUnderlineAdorner");
+            }
+
+            SnapshotSpan? activeUnderlineSpan = null;
+
+            void ClearUnderline()
+            {
+                activeUnderlineSpan = null;
+                underlineAdorner?.Clear();
+                if (view.VisualElement.Cursor == System.Windows.Input.Cursors.Hand)
+                {
+                    view.VisualElement.Cursor = null;
+                }
+            }
+
+            void UpdateHoverUnderline(System.Windows.Point mousePos)
+            {
+                if (view.IsClosed || !SettingsManager.GetGeneralSettings().enableCtrlClickGoToDefinition)
+                {
+                    ClearUnderline();
+                    return;
+                }
+
+                bool isCtrlPressed = (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) == System.Windows.Input.ModifierKeys.Control;
+                if (!isCtrlPressed)
+                {
+                    ClearUnderline();
+                    return;
+                }
+
+                try
+                {
+                    var line = view.TextViewLines?.GetTextViewLineContainingYCoordinate(mousePos.Y + view.ViewportTop);
+                    var point = line?.GetBufferPositionFromXCoordinate(mousePos.X + view.ViewportLeft);
+                    if (!point.HasValue)
+                    {
+                        ClearUnderline();
+                        return;
+                    }
+
+                    if (activeUnderlineSpan.HasValue && activeUnderlineSpan.Value.Snapshot == point.Value.Snapshot
+                        && point.Value.Position >= activeUnderlineSpan.Value.Start.Position
+                        && point.Value.Position <= activeUnderlineSpan.Value.End.Position)
+                    {
+                        if (view.VisualElement.Cursor != System.Windows.Input.Cursors.Hand)
+                        {
+                            view.VisualElement.Cursor = System.Windows.Input.Cursors.Hand;
+                        }
+                        return;
+                    }
+
+                    var snapshotLine = point.Value.GetContainingLine();
+                    string lineText = snapshotLine.GetText();
+                    int colInLine = point.Value.Position - snapshotLine.Start.Position;
+
+                    if (colInLine >= lineText.Length || char.IsWhiteSpace(lineText[colInLine])
+                        || lineText[colInLine] == ',' || lineText[colInLine] == ';' || lineText[colInLine] == '(' || lineText[colInLine] == ')')
+                    {
+                        ClearUnderline();
+                        return;
+                    }
+
+                    if (SqlSymbolResolver.TryGetMultipartIdentifierSpan(lineText, colInLine, out string _, out int startInLine, out int length))
+                    {
+                        int absoluteStart = snapshotLine.Start.Position + startInLine;
+                        var targetSpan = new SnapshotSpan(point.Value.Snapshot, absoluteStart, length);
+                        activeUnderlineSpan = targetSpan;
+
+                        var startCharBounds = line.GetCharacterBounds(targetSpan.Start);
+                        var endCharBounds = line.GetCharacterBounds(targetSpan.End - 1);
+
+                        double left = startCharBounds.Left - view.ViewportLeft;
+                        double right = endCharBounds.Right - view.ViewportLeft;
+                        double top = startCharBounds.Top - view.ViewportTop;
+                        double bottom = startCharBounds.Bottom - view.ViewportTop;
+
+                        var boundsRect = new System.Windows.Rect(new System.Windows.Point(left, top), new System.Windows.Point(right, bottom));
+                        underlineAdorner?.UpdateBounds(boundsRect);
+                        view.VisualElement.Cursor = System.Windows.Input.Cursors.Hand;
+                        return;
+                    }
+
+                    ClearUnderline();
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Error(ex, "Failed to update Ctrl+Hover underline");
+                    ClearUnderline();
+                }
+            }
 
             void OnMouseDown(object sender, MouseButtonEventArgs e)
             {
                 if (view.IsClosed) return;
 
                 // 1. Ctrl + Left Click = Go to Definition (same as F12)
-                if (e.ClickCount == 1 && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control
+                if (e.ClickCount == 1 && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Control) == System.Windows.Input.ModifierKeys.Control
                     && SettingsManager.GetGeneralSettings().enableCtrlClickGoToDefinition)
                 {
                     try
@@ -805,6 +907,8 @@ namespace MSSQLTool
                             nativeView.SetCaretPos(lineNum, colNum);
                             view.Caret.MoveTo(point.Value);
 
+                            ClearUnderline();
+
                             if (KeypressCommandFilter.TryGoToDefinition(nativeView))
                             {
                                 e.Handled = true;
@@ -819,7 +923,7 @@ namespace MSSQLTool
                 }
 
                 // 2. Double Click string selection
-                if (e.ClickCount != 2 || Keyboard.Modifiers != ModifierKeys.None
+                if (e.ClickCount != 2 || System.Windows.Input.Keyboard.Modifiers != System.Windows.Input.ModifierKeys.None
                     || !SettingsManager.GetGeneralSettings().selectQuotedStringOnDoubleClick) return;
                 try
                 {
@@ -841,10 +945,76 @@ namespace MSSQLTool
                 }
             }
 
+            void OnMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+            {
+                var mousePos = e.GetPosition(view.VisualElement);
+                UpdateHoverUnderline(mousePos);
+            }
+
+            void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+            {
+                if (e.Key == System.Windows.Input.Key.LeftCtrl || e.Key == System.Windows.Input.Key.RightCtrl)
+                {
+                    var mousePos = System.Windows.Input.Mouse.GetPosition(view.VisualElement);
+                    UpdateHoverUnderline(mousePos);
+                }
+            }
+
+            void OnKeyUp(object sender, System.Windows.Input.KeyEventArgs e)
+            {
+                if (e.Key == System.Windows.Input.Key.LeftCtrl || e.Key == System.Windows.Input.Key.RightCtrl)
+                {
+                    ClearUnderline();
+                }
+            }
+
+            void OnMouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+            {
+                ClearUnderline();
+            }
+
+            void OnLostFocus(object sender, System.Windows.RoutedEventArgs e)
+            {
+                ClearUnderline();
+            }
+
+            void OnLayoutChanged(object sender, TextViewLayoutChangedEventArgs e)
+            {
+                ClearUnderline();
+            }
+
+            view.VisualElement.PreviewMouseLeftButtonDown += OnMouseDown;
+            view.VisualElement.PreviewMouseMove += OnMouseMove;
+            view.VisualElement.PreviewKeyDown += OnKeyDown;
+            view.VisualElement.PreviewKeyUp += OnKeyUp;
+            view.VisualElement.MouseLeave += OnMouseLeave;
+            view.VisualElement.LostKeyboardFocus += OnLostFocus;
+            view.LayoutChanged += OnLayoutChanged;
+
+            view.Closed += OnClosed;
+            view.Properties.AddProperty(typeof(SqlStringContent), true);
+
             void OnClosed(object sender, EventArgs e)
             {
                 view.VisualElement.PreviewMouseLeftButtonDown -= OnMouseDown;
+                view.VisualElement.PreviewMouseMove -= OnMouseMove;
+                view.VisualElement.PreviewKeyDown -= OnKeyDown;
+                view.VisualElement.PreviewKeyUp -= OnKeyUp;
+                view.VisualElement.MouseLeave -= OnMouseLeave;
+                view.VisualElement.LostKeyboardFocus -= OnLostFocus;
+                view.LayoutChanged -= OnLayoutChanged;
                 view.Closed -= OnClosed;
+
+                try
+                {
+                    if (underlineAdorner != null && adornerLayer != null)
+                    {
+                        adornerLayer.Remove(underlineAdorner);
+                    }
+                }
+                catch { }
+
+                ClearUnderline();
                 view.Properties.RemoveProperty(typeof(SqlStringContent));
             }
         }

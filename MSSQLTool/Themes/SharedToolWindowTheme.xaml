@@ -3,6 +3,9 @@
                     xmlns:primitives="clr-namespace:System.Windows.Controls.Primitives;assembly=PresentationFramework">
     <SolidColorBrush x:Key="ToolThemeBackgroundBrush" Color="White" />
     <SolidColorBrush x:Key="ToolThemeForegroundBrush" Color="Black" />
+    <SolidColorBrush x:Key="AxialThemeBackgroundBrush" Color="White" />
+    <SolidColorBrush x:Key="AxialThemeForegroundBrush" Color="Black" />
+    <SolidColorBrush x:Key="AxialThemeGridHeaderBackgroundBrush" Color="#F3F3F3" />
     <SolidColorBrush x:Key="ToolThemeBorderBrush" Color="#707070" />
     <SolidColorBrush x:Key="ToolThemeSubtleBorderBrush" Color="#909090" />
     <SolidColorBrush x:Key="ToolThemeHeaderBackgroundBrush" Color="#F3F3F3" />

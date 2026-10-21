@@ -13,7 +13,7 @@
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         ShowInTaskbar="False"
-        Background="{DynamicResource AxialThemeBackgroundBrush}"
+        Background="{DynamicResource ToolThemeBackgroundBrush}"
         Foreground="{DynamicResource AxialThemeForegroundBrush}">
     <platform:DialogWindow.Resources>
         <ResourceDictionary>
@@ -23,7 +23,7 @@
         </ResourceDictionary>
     </platform:DialogWindow.Resources>
 
-    <Grid Background="{DynamicResource AxialThemeBackgroundBrush}">
+    <Grid Background="{DynamicResource ToolThemeBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />

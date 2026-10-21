@@ -220,6 +220,7 @@
     <Compile Include="Modules\ResultGridControlAdaptor.cs" />
     <Compile Include="Modules\GridAccess.cs" />
     <Compile Include="Modules\KeypressCommandFilter.cs" />
+    <Compile Include="Modules\HyperlinkUnderlineAdorner.cs" />
     <Compile Include="Modules\MetricsService.cs" />
     <Compile Include="Modules\LocalizationManager.cs" />
     <Compile Include="Modules\ToolWindowThemeSupport.cs" />

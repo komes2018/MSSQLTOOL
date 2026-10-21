@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:platform="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
         Title="SQL Server connection" Width="490" SizeToContent="Height" ResizeMode="NoResize"
-        WindowStartupLocation="CenterOwner" Background="{DynamicResource AxialThemeBackgroundBrush}"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource ToolThemeBackgroundBrush}"
              Foreground="{DynamicResource AxialThemeForegroundBrush}">
     <platform:DialogWindow.Resources>
         <ResourceDictionary><ResourceDictionary.MergedDictionaries>

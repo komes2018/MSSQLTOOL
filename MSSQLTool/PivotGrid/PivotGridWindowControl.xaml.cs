@@ -241,7 +241,7 @@ namespace MSSQLTool.PivotGrid
         internal static Style CreateCellStyle(FrameworkElement owner, bool grouping, DataRowView totalRow)
         {
             var style = new Style(typeof(DataGridCell), (Style)owner.FindResource(typeof(DataGridCell)));
-            style.Setters.Add(new Setter(Control.BackgroundProperty, new DynamicResourceExtension(grouping ? "AxialThemeGridHeaderBackgroundBrush" : "AxialThemeBackgroundBrush")));
+            style.Setters.Add(new Setter(Control.BackgroundProperty, new DynamicResourceExtension(grouping ? "AxialThemeGridHeaderBackgroundBrush" : "ToolThemeBackgroundBrush")));
             style.Setters.Add(new Setter(Control.ForegroundProperty, new DynamicResourceExtension("AxialThemeForegroundBrush")));
             style.Setters.Add(new Setter(Control.BorderBrushProperty, new DynamicResourceExtension("AxialThemeBorderBrush")));
             // Compare the row object, not its label: a source value can also be 'Grand total'.

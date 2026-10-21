@@ -335,7 +335,7 @@ namespace MSSQLTool.DataCompare
             }
             var window = new Microsoft.VisualStudio.PlatformUI.DialogWindow { Title = column.Name, Owner = Window.GetWindow(this), Width = 1000, Height = 600, Content = panel,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner };
-            window.SetResourceReference(Control.BackgroundProperty, "AxialThemeBackgroundBrush");
+            window.SetResourceReference(Control.BackgroundProperty, "ToolThemeBackgroundBrush");
             window.SetResourceReference(Control.ForegroundProperty, "AxialThemeForegroundBrush");
             window.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("/MSSQLTool;component/Themes/SharedToolWindowTheme.xaml", UriKind.Relative) });
             using (var controller = new ToolWindowThemeController(window, () => ToolWindowThemeResources.ApplySharedTheme(window))) window.ShowDialog();

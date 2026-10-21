@@ -32,6 +32,7 @@ namespace MSSQLTool.QuerySafety
 
             Loaded += (sender, args) =>
             {
+                ToolWindowThemeResources.ApplySharedTheme(this);
                 LocalizationManager.Apply(this);
                 if (canRemember) RepeatButton.Focus();
                 else CancelButton.Focus();

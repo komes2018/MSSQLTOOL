@@ -173,6 +173,14 @@ namespace MSSQLTool.RegressionTests
                 new CompletionItem { Kind = CompletionItemKind.Snippet })));
             Run("Derived query scope does not leak", TestDerivedScope);
             Run("Bracketed multipart symbol", () => Equal("[sales].[Order Header]", SqlSymbolResolver.ReadMultipartIdentifier("SELECT * FROM [sales].[Order Header]", 25)));
+            Run("TryGetMultipartIdentifierSpan resolves bracketed symbol and range", () =>
+            {
+                string sql = "DELETE from [dbo].[EMR_CPOE_SXZKJGK]";
+                True(SqlSymbolResolver.TryGetMultipartIdentifierSpan(sql, 20, out string sym, out int start, out int len));
+                Equal("[dbo].[EMR_CPOE_SXZKJGK]", sym);
+                Equal(12, start);
+                Equal(24, len);
+            });
             Run("F12 resolves alias column owner", TestSymbolAlias);
             Run("F12 resolves procedure at identifier end", () => Equal("dbo.P_XCX_ADD",
                 SqlSymbolResolver.ReadMultipartIdentifier("EXEC dbo.P_XCX_ADD", 18)));

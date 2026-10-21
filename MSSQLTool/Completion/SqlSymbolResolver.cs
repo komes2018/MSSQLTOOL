@@ -59,7 +59,15 @@ namespace MSSQLTool.Completion
 
         internal static string ReadMultipartIdentifier(string sql, int caretOffset)
         {
-            if (string.IsNullOrEmpty(sql)) return string.Empty;
+            return TryGetMultipartIdentifierSpan(sql, caretOffset, out string symbol, out _, out _) ? symbol : string.Empty;
+        }
+
+        internal static bool TryGetMultipartIdentifierSpan(string sql, int caretOffset, out string symbol, out int startOffset, out int length)
+        {
+            symbol = string.Empty;
+            startOffset = -1;
+            length = 0;
+            if (string.IsNullOrEmpty(sql) || caretOffset < 0 || caretOffset > sql.Length) return false;
             try
             {
                 var parser = new TSql170Parser(true);
@@ -71,13 +79,20 @@ namespace MSSQLTool.Completion
                     if (tokens[i].Offset <= caretOffset && caretOffset <= end && IsIdentifier(tokens[i])) { index = i; break; }
                     if (caretOffset == tokens[i].Offset - 1 && IsIdentifier(tokens[i])) { index = i; break; }
                 }
-                if (index < 0) return string.Empty;
+                if (index < 0) return false;
                 int first = index, last = index;
                 while (first >= 2 && tokens[first - 1].TokenType == TSqlTokenType.Dot && IsIdentifier(tokens[first - 2])) first -= 2;
                 while (last + 2 < tokens.Count && tokens[last + 1].TokenType == TSqlTokenType.Dot && IsIdentifier(tokens[last + 2])) last += 2;
-                return string.Concat(tokens.Skip(first).Take(last - first + 1).Select(t => t.Text));
+
+                symbol = string.Concat(tokens.Skip(first).Take(last - first + 1).Select(t => t.Text));
+                if (string.IsNullOrWhiteSpace(symbol)) return false;
+
+                startOffset = tokens[first].Offset;
+                int endOffset = tokens[last].Offset + (tokens[last].Text?.Length ?? 0);
+                length = endOffset - startOffset;
+                return length > 0;
             }
-            catch { return string.Empty; }
+            catch { return false; }
         }
 
         private static int FindLocalDefinition(string sql, string name)

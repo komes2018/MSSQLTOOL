@@ -4,8 +4,8 @@
         xmlns:platform="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
         Title="Confirm query execution" Width="710" MinWidth="570" Height="460" MinHeight="360"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
-        Background="{DynamicResource AxialThemeBackgroundBrush}"
-        Foreground="{DynamicResource AxialThemeForegroundBrush}">
+        Background="{DynamicResource ToolThemeBackgroundBrush}"
+        Foreground="{DynamicResource ToolThemeForegroundBrush}">
     <platform:DialogWindow.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -13,20 +13,23 @@
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </platform:DialogWindow.Resources>
-    <Grid Margin="18">
+    <Grid Margin="18" Background="{DynamicResource ToolThemeBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <StackPanel>
-            <TextBlock Text="This query may change or remove data" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap"/>
-            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap"
+            <TextBlock Text="This query may change or remove data" FontSize="19" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{DynamicResource ToolThemeForegroundBrush}"/>
+            <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource ToolThemeForegroundBrush}"
                        Text="UPDATE and DELETE without WHERE, and TRUNCATE TABLE, require your approval. Cancel to review the query."/>
         </StackPanel>
-        <TextBlock x:Name="ContextText" Grid.Row="1" Margin="0,12" TextWrapping="Wrap"/>
+        <TextBlock x:Name="ContextText" Grid.Row="1" Margin="0,12" TextWrapping="Wrap" Foreground="{DynamicResource ToolThemeForegroundBrush}"/>
         <TextBox x:Name="ActionText" Grid.Row="2" IsReadOnly="True" TextWrapping="Wrap"
-                 VerticalScrollBarVisibility="Auto" Padding="8"/>
-        <TextBlock x:Name="RepeatText" Grid.Row="3" Margin="0,12" TextWrapping="Wrap"/>
+                 VerticalScrollBarVisibility="Auto" Padding="8"
+                 Background="{DynamicResource ToolThemeHeaderBackgroundBrush}"
+                 Foreground="{DynamicResource ToolThemeForegroundBrush}"
+                 BorderBrush="{DynamicResource ToolThemeBorderBrush}"/>
+        <TextBlock x:Name="RepeatText" Grid.Row="3" Margin="0,12" TextWrapping="Wrap" Foreground="{DynamicResource ToolThemeForegroundBrush}"/>
         <WrapPanel Grid.Row="4" HorizontalAlignment="Right">
             <Button x:Name="RepeatButton" Content="Allow repeats this session" Margin="0,0,8,0" Padding="10,6"
                     IsDefault="True" Click="AllowRepeats_Click"/>
