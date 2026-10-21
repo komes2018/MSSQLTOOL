@@ -154,10 +154,13 @@ as select 1;
 
                 UiLanguageSelector.SelectedValue = SettingsManager.GetUiLanguage();
                 ScriptObjectShortcut.Text = SettingsManager.GetScriptObjectShortcut();
+                var genSettings = SettingsManager.GetGeneralSettings();
+                EnableCtrlClickGoToDefinition.IsChecked = genSettings.enableCtrlClickGoToDefinition;
 
                 var completionSettings = SettingsManager.GetSqlCompletionSettings();
                 UseSqlCompletion.IsChecked = completionSettings.enabled;
                 AutomaticSqlCompletion.IsChecked = completionSettings.automaticPopup;
+                CompletionCommitOnEnter.IsChecked = completionSettings.commitOnEnter;
                 CompletionTrustServerCertificate.IsChecked = completionSettings.trustServerCertificate;
                 CompletionSquareBrackets.IsChecked = completionSettings.useSquareBrackets;
                 CompletionAutoRefreshMetadata.IsChecked = completionSettings.autoRefreshMetadata;
@@ -167,9 +170,13 @@ as select 1;
                 CompletionAliasPrefixes.Text = completionSettings.aliasPrefixToIgnore;
                 CompletionCustomAliases.Text = completionSettings.customAliases;
                 CompletionJoinRules.Text = completionSettings.joinColumnRules;
-            CompletionAdditionalKeywords.Text = completionSettings.additionalKeywords;
+                CompletionAdditionalKeywords.Text = completionSettings.additionalKeywords;
                 CompletionDelay.Text = completionSettings.delayMilliseconds.ToString();
                 CompletionMaximumItems.Text = completionSettings.maximumItems.ToString();
+
+                var snippetSettings = SettingsManager.GetSnippetSettings();
+                UseSnippets.IsChecked = snippetSettings.useSnippets;
+                SnippetReplaceKeyCombo.SelectedValue = snippetSettings.replaceKey.ToString();
 
                 // Code Format page: the whole profile is loaded from a single FormatterOptions instance.
                 formatOptions = SettingsManager.GetFormatterOptions();
@@ -211,6 +218,7 @@ as select 1;
             var completionSettings = SettingsManager.GetSqlCompletionSettings();
             completionSettings.enabled = UseSqlCompletion.IsChecked.GetValueOrDefault();
             completionSettings.automaticPopup = AutomaticSqlCompletion.IsChecked.GetValueOrDefault();
+            completionSettings.commitOnEnter = CompletionCommitOnEnter.IsChecked.GetValueOrDefault(true);
             completionSettings.trustServerCertificate = CompletionTrustServerCertificate.IsChecked.GetValueOrDefault();
             completionSettings.useSquareBrackets = CompletionSquareBrackets.IsChecked.GetValueOrDefault();
             completionSettings.autoRefreshMetadata = CompletionAutoRefreshMetadata.IsChecked.GetValueOrDefault();
@@ -229,6 +237,14 @@ as select 1;
                     "SQL Completion", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
+
+            var snippetSettings = SettingsManager.GetSnippetSettings();
+            snippetSettings.useSnippets = UseSnippets.IsChecked.GetValueOrDefault(true);
+            if (SnippetReplaceKeyCombo.SelectedValue is string repKeyStr && Enum.TryParse(repKeyStr, out SettingsManager.SnippetReplaceKey repKey))
+            {
+                snippetSettings.replaceKey = repKey;
+            }
+            SettingsManager.SaveSnippetSettings(snippetSettings);
 
             Completion.SqlMetadataCache.InvalidateAll();
 
@@ -700,7 +716,28 @@ as select 1;
                 return;
             }
             ScriptObjectShortcut.Text = string.IsNullOrEmpty(shortcut) ? "None" : shortcut;
+
+            var genSettings = SettingsManager.GetGeneralSettings();
+            genSettings.enableCtrlClickGoToDefinition = EnableCtrlClickGoToDefinition.IsChecked.GetValueOrDefault(true);
+            SettingsManager.SaveGeneralSettings(genSettings);
+
             SavedMessage();
+        }
+
+        private void Button_ManageSnippets_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MSSQLToolPackage.PackageInstance != null)
+                {
+                    _ = MSSQLToolPackage.PackageInstance.ShowToolWindowAsync(
+                        typeof(SnippetManagerWindow), 0, true, MSSQLToolPackage.PackageInstance.DisposalToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error(ex, "Failed to open Snippet Manager window");
+            }
         }
 
         private static string NormalizeShortcut(string value)

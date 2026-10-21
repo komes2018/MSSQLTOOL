@@ -786,12 +786,45 @@ namespace MSSQLTool
 
             void OnMouseDown(object sender, MouseButtonEventArgs e)
             {
-                if (e.ClickCount != 2 || Keyboard.Modifiers != ModifierKeys.None || view.IsClosed
+                if (view.IsClosed) return;
+
+                // 1. Ctrl + Left Click = Go to Definition (same as F12)
+                if (e.ClickCount == 1 && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control
+                    && SettingsManager.GetGeneralSettings().enableCtrlClickGoToDefinition)
+                {
+                    try
+                    {
+                        var mouse = e.GetPosition(view.VisualElement);
+                        var line = view.TextViewLines?.GetTextViewLineContainingYCoordinate(mouse.Y + view.ViewportTop);
+                        var point = line?.GetBufferPositionFromXCoordinate(mouse.X + view.ViewportLeft);
+                        if (point.HasValue)
+                        {
+                            var snapshotLine = point.Value.GetContainingLine();
+                            int lineNum = snapshotLine.LineNumber;
+                            int colNum = point.Value.Position - snapshotLine.Start.Position;
+                            nativeView.SetCaretPos(lineNum, colNum);
+                            view.Caret.MoveTo(point.Value);
+
+                            if (KeypressCommandFilter.TryGoToDefinition(nativeView))
+                            {
+                                e.Handled = true;
+                                return;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.Error(ex, "Failed to navigate to definition on Ctrl+Click.");
+                    }
+                }
+
+                // 2. Double Click string selection
+                if (e.ClickCount != 2 || Keyboard.Modifiers != ModifierKeys.None
                     || !SettingsManager.GetGeneralSettings().selectQuotedStringOnDoubleClick) return;
                 try
                 {
                     var mouse = e.GetPosition(view.VisualElement);
-                    var line = view.TextViewLines.GetTextViewLineContainingYCoordinate(mouse.Y + view.ViewportTop);
+                    var line = view.TextViewLines?.GetTextViewLineContainingYCoordinate(mouse.Y + view.ViewportTop);
                     var point = line?.GetBufferPositionFromXCoordinate(mouse.X + view.ViewportLeft);
                     if (!point.HasValue) return;
                     var snapshot = point.Value.Snapshot;

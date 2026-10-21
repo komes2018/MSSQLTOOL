@@ -162,7 +162,10 @@ namespace MSSQLTool
                     string json = File.ReadAllText(filePath);
                     var snippets = JsonConvert.DeserializeObject<List<SnippetItem>>(json);
                     if (snippets != null)
+                    {
+                        EnsureEssentialDefaults(snippets);
                         return snippets;
+                    }
                 }
             }
             catch
@@ -170,6 +173,31 @@ namespace MSSQLTool
             }
 
             return GetDefaultSnippets();
+        }
+
+        private static void EnsureEssentialDefaults(List<SnippetItem> snippets)
+        {
+            try
+            {
+                var existingPrefixes = new HashSet<string>(snippets.Select(s => s.Prefix), StringComparer.OrdinalIgnoreCase);
+                bool added = false;
+                foreach (var def in GetDefaultSnippets())
+                {
+                    if (!existingPrefixes.Contains(def.Prefix))
+                    {
+                        snippets.Add(def);
+                        existingPrefixes.Add(def.Prefix);
+                        added = true;
+                    }
+                }
+                if (added)
+                {
+                    SaveToFile(snippets);
+                }
+            }
+            catch
+            {
+            }
         }
 
         private static void SaveToFile(List<SnippetItem> snippets)
@@ -193,6 +221,12 @@ namespace MSSQLTool
         {
             return new List<SnippetItem>
             {
+                new SnippetItem("ssf", "Select * from", "SELECT * FROM #"),
+                new SnippetItem("scf", "Select count", "SELECT COUNT(1) FROM #"),
+                new SnippetItem("ob", "Order by", "ORDER BY #"),
+                new SnippetItem("gb", "Group by", "GROUP BY #"),
+                new SnippetItem("jn", "Inner join", "INNER JOIN # ON "),
+                new SnippetItem("ljn", "Left join", "LEFT JOIN # ON "),
                 new SnippetItem("sel", "Select all from table", "SELECT *\r\nFROM #\r\nWHERE 1=1"),
                 new SnippetItem("selc", "Select count", "SELECT COUNT(*)\r\nFROM #"),
                 new SnippetItem("selt", "Select top 100", "SELECT TOP 100 *\r\nFROM #\r\nWHERE 1=1"),

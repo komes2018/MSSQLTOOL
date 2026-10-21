@@ -17,6 +17,8 @@ namespace MSSQLTool
             // values have to be displayed as soon as the window is created.
             cmbReplaceKey.SelectedValue = vm.ReplaceKey.ToString();
             cmbAsteriskTriggerKey.SelectedValue = vm.AsteriskTriggerKey.ToString();
+
+            LocalizationManager.Apply(this);
         }
 
         private void cmbReplaceKey_SelectionChanged(object sender, SelectionChangedEventArgs e)

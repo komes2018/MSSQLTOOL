@@ -108,6 +108,7 @@
                     <ComboBoxItem Content="Enter" Tag="Enter"/>
                     <ComboBoxItem Content="Shift+Enter" Tag="ShiftEnter"/>
                     <ComboBoxItem Content="Tab" Tag="Tab"/>
+                    <ComboBoxItem Content="Tab or Enter" Tag="TabOrEnter"/>
                     <ComboBoxItem Content="Ctrl+Space" Tag="CtrlSpace"/>
                 </ComboBox>
 
@@ -130,6 +131,7 @@
                     <ComboBoxItem Content="Enter" Tag="Enter"/>
                     <ComboBoxItem Content="Shift+Enter" Tag="ShiftEnter"/>
                     <ComboBoxItem Content="Tab" Tag="Tab"/>
+                    <ComboBoxItem Content="Tab or Enter" Tag="TabOrEnter"/>
                     <ComboBoxItem Content="Ctrl+Space" Tag="CtrlSpace"/>
                 </ComboBox>
 

@@ -37,6 +37,32 @@ namespace MSSQLTool
 
         private static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>(StringComparer.Ordinal)
         {
+            // Auto completion, snippets & navigation enhancements
+            ["Commit completion on Enter (in addition to Tab)"] = "弹窗后支持 Enter 回车键录入 (除 Tab 键外)",
+            ["Enable custom abbreviations and snippets (e.g. ssf -> SELECT * FROM)"] = "启用自定义缩写与代码片段 (如 ssf 快捷输入为 SELECT * FROM)",
+            ["Snippets and Abbreviations"] = "代码片段与快捷缩写",
+            ["Snippet trigger key:"] = "缩写替换触发按键:",
+            ["Manage Snippets..."] = "管理代码片段与缩写...",
+            ["Enable Ctrl+Click to Go to Definition (same as F12)"] = "支持 Ctrl + 鼠标左键点击跳转对象定义 (等同于 F12)",
+            ["Tab or Enter"] = "Tab 或 Enter",
+            ["Use code snippets (SSMS restart required)"] = "启用代码片段与自定义缩写",
+            ["Snippets Location:"] = "代码片段存储路径:",
+            ["Select folder..."] = "选择文件夹...",
+            ["Replace snippets when pressing:"] = "按键触发缩写替换:",
+            ["Replace SELECT * with column list"] = "将 SELECT * 展开为实际列清单",
+            ["Replace asterisk when pressing:"] = "按键触发通配符展开:",
+            ["Cursor Marker:"] = "光标定位符:",
+            ["+ New"] = "+ 新增",
+            ["Duplicate"] = "复制",
+            ["Edit"] = "编辑",
+            ["Import .sql"] = "导入 .sql",
+            ["Save Snippet"] = "保存代码片段",
+            ["Cancel"] = "取消",
+            ["Prefix:"] = "缩写前缀:",
+            ["Description:"] = "描述说明:",
+            ["Body:"] = "代码内容 (Body):",
+            ["Body (preview)"] = "代码预览 (Body)",
+
             // Job Quick View (作业快速管理)
             ["Quick Manage"] = "作业快速管理",
             ["SQL Server Agent Job Quick Manage"] = "SQL Server Agent 作业快速管理",

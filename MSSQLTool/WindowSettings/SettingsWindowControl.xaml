@@ -193,6 +193,9 @@
                     </Grid>
                     <TextBlock Text="Select an object name in the SQL editor, then use this shortcut to open its definition script. Enter None to remove the shortcut."
                                TextWrapping="Wrap" Opacity="0.8" Margin="0,10,0,0"/>
+                    <CheckBox x:Name="EnableCtrlClickGoToDefinition"
+                              Content="Enable Ctrl+Click to Go to Definition (same as F12)"
+                              Margin="0,12,0,0"/>
                 </StackPanel>
             </TabItem>
 
@@ -203,6 +206,8 @@
                     <StackPanel IsEnabled="{Binding IsChecked, ElementName=UseSqlCompletion}">
                         <CheckBox x:Name="AutomaticSqlCompletion"
                                   Content="Show completion automatically while typing" Margin="0,4"/>
+                        <CheckBox x:Name="CompletionCommitOnEnter"
+                                  Content="Commit completion on Enter (in addition to Tab)" Margin="0,4"/>
                         <CheckBox x:Name="CompletionTrustServerCertificate"
                                   Content="Trust the SQL Server certificate for completion metadata" Margin="0,4"
                                   ToolTip="Applies only to the background connection used to load completion metadata."/>
@@ -239,6 +244,22 @@
                                 Click="Button_RefreshCompletionMetadata_Click" Margin="0,8,0,0"
                                 Width="220" HorizontalAlignment="Left"/>
                         <TextBlock x:Name="CompletionMetadataStatus" TextWrapping="Wrap" Opacity="0.8" Margin="0,8,0,0"/>
+                        <Separator Margin="0,12,0,10"/>
+                        <TextBlock Text="Snippets and Abbreviations" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                        <CheckBox x:Name="UseSnippets"
+                                  Content="Enable custom abbreviations and snippets (e.g. ssf -> SELECT * FROM)" Margin="0,4"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4"
+                                    IsEnabled="{Binding IsChecked, ElementName=UseSnippets}">
+                            <TextBlock Text="Snippet trigger key:" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="SnippetReplaceKeyCombo" SelectedValuePath="Tag" Width="140" Margin="8,0,0,0">
+                                <ComboBoxItem Content="Tab" Tag="Tab"/>
+                                <ComboBoxItem Content="Enter" Tag="Enter"/>
+                                <ComboBoxItem Content="Tab or Enter" Tag="TabOrEnter"/>
+                                <ComboBoxItem Content="Shift+Enter" Tag="ShiftEnter"/>
+                                <ComboBoxItem Content="Ctrl+Space" Tag="CtrlSpace"/>
+                            </ComboBox>
+                            <Button Content="Manage Snippets..." Click="Button_ManageSnippets_Click" Margin="12,0,0,0" Width="150"/>
+                        </StackPanel>
                     </StackPanel>
                     <Button Content="Save" Click="Button_SaveSqlCompletion_Click"
                             Style="{DynamicResource PrimaryButtonStyle}"

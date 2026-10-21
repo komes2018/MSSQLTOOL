@@ -139,6 +139,20 @@ namespace MSSQLTool.RegressionTests
             Run("Metadata connection can trust server certificate", TestMetadataConnectionTrustOverride);
             Run("Metadata token connection removes conflicting authentication", TestMetadataTokenConnection);
             Run("Shortcut automation uses scalar binding", TestShortcutAutomationBinding);
+            Run("Custom enhancements: settings defaults and snippets", () =>
+            {
+                var compSettings = new SettingsManager.SqlCompletionSettings();
+                True(compSettings.commitOnEnter);
+
+                var snipSettings = new SettingsManager.SnippetSettings();
+                True(snipSettings.useSnippets);
+
+                var genSettings = new SettingsManager.GeneralSettings();
+                True(genSettings.enableCtrlClickGoToDefinition);
+
+                var snippets = SnippetService.GetAllSnippets();
+                True(snippets.Any(s => string.Equals(s.Prefix, "ssf", StringComparison.OrdinalIgnoreCase)));
+            });
             Run("F12 shortcut normalization", () => True(ShortcutManager.IsF12Shortcut(" f12 ")));
             Run("EXEC recommends parameters", TestExecuteParameters);
             Run("Member recommends columns with FROM after caret", TestMemberColumns);

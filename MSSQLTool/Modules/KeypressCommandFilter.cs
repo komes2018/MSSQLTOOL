@@ -92,9 +92,14 @@ namespace MSSQLTool
                 if (completionController.HandleNavigation(nCmdID))
                     return VSConstants.S_OK;
 
-                // Tab is the only completion commit key; Enter must always insert
-                // a newline so multi-statement editing stays predictable.
+                // Tab is a completion commit key; Enter is also supported when completion popup is visible and commitOnEnter is true.
                 if (nCmdID == (uint)VSConstants.VSStd2KCmdID.TAB
+                    && completionController.TryCommit())
+                    return VSConstants.S_OK;
+
+                if (nCmdID == (uint)VSConstants.VSStd2KCmdID.RETURN
+                    && completionController.IsVisible
+                    && SettingsManager.GetSqlCompletionSettings().commitOnEnter
                     && completionController.TryCommit())
                     return VSConstants.S_OK;
 
@@ -195,6 +200,11 @@ namespace MSSQLTool
 
                 case SettingsManager.SnippetReplaceKey.Tab:
                     return nCmdID == (uint)VSConstants.VSStd2KCmdID.TAB;
+
+                case SettingsManager.SnippetReplaceKey.TabOrEnter:
+                    return nCmdID == (uint)VSConstants.VSStd2KCmdID.TAB ||
+                           (nCmdID == (uint)VSConstants.VSStd2KCmdID.RETURN &&
+                            (Keyboard.Modifiers & ModifierKeys.Shift) != ModifierKeys.Shift);
 
                 case SettingsManager.SnippetReplaceKey.CtrlSpace:
                     return (nCmdID == (uint)VSConstants.VSStd2KCmdID.COMPLETEWORD ||
@@ -341,6 +351,21 @@ namespace MSSQLTool
         {
             return snippetsEnabled && replaceKey == SettingsManager.SnippetReplaceKey.CtrlSpace && controlPressed
                 && explicitCompletionCommand;
+        }
+
+        public bool TriggerGoToDefinition()
+        {
+            return BeginGoToDefinition();
+        }
+
+        public static bool TryGoToDefinition(IVsTextView textView)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            if (textView == null) return false;
+            var pkg = MSSQLToolPackage.PackageInstance;
+            if (pkg == null) return false;
+            var filter = pkg.EnsureCommandFilter(textView);
+            return filter != null && filter.TriggerGoToDefinition();
         }
 
         private bool BeginGoToDefinition()

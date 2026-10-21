@@ -247,12 +247,13 @@ ORDER BY sd.[name];
             Enter,
             ShiftEnter,
             Tab,
-            CtrlSpace
+            CtrlSpace,
+            TabOrEnter
         }
 
         public class SnippetSettings
         {
-            public bool useSnippets = false;
+            public bool useSnippets = true;
             public string snippetFolder = string.Empty;
             public SnippetReplaceKey replaceKey = SnippetReplaceKey.Tab;
             public string cursorMarker = "#";
@@ -427,6 +428,7 @@ ORDER BY sd.[name];
             public bool showObjectDetails = true;
             public bool enableColumnPicker = true;
             public bool autoAddAliases = false;
+            public bool commitOnEnter = true;
             public string aliasPrefixToIgnore = "tbl_,vw_";
             public string customAliases = string.Empty;
             /// <summary>Extra completion keywords, separated by ";" or new lines.  Lets a team add its own house style (for example "WITH (NOLOCK)" or internal prefixes) without a rebuild.</summary>
@@ -539,6 +541,7 @@ ORDER BY sd.[name];
         {
             public bool alignNumericValuesToRight = true;
             public bool selectQuotedStringOnDoubleClick = true;
+            public bool enableCtrlClickGoToDefinition = true;
         }
 
         public class ExcelExportSettings
