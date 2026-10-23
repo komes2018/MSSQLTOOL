@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.IO;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
@@ -1359,8 +1360,8 @@ namespace MSSQLTool.Completion
                                 DisplayText = condition,
                                 InsertText = condition,
                                 Kind = CompletionItemKind.Join,
-                                Description = "foreign-key condition (" + fk.ConstraintName + ")",
-                                DetailTextProvider = () => "Foreign key: " + fk.ConstraintName + Environment.NewLine + "Relates " + rightObj.Name + " to " + leftObj.Name,
+                                Description = "foreign-key condition",
+                                DetailTextProvider = () => "Foreign key relates " + rightObj.Name + " to " + leftObj.Name,
                                 Score = 200
                             });
                         }
