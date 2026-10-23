@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
+using MSSQLTool.Completion;
 
 namespace MSSQLTool.QuerySafety
 {
@@ -37,11 +39,22 @@ namespace MSSQLTool.QuerySafety
             fragment?.Accept(new ActionVisitor(result));
             if (errors.Count != 0)
             {
-                // A partially parsed script must not silently bypass the warning.
-                var first = errors[0];
-                result.Limitation = string.Format(
-                    LocalizationManager.T("The query could not be fully checked (SQL syntax or unsupported syntax near line {0}). Review it before running. Repeat approval is unavailable for this execution."),
-                    first.Line);
+                // Only warn if the script actually contains potentially destructive keywords (UPDATE, DELETE, TRUNCATE).
+                // A syntax error in a plain SELECT or EXEC query must never trigger the destructive data modification warning!
+                string masked = SqlTextContext.MaskCommentsAndStrings(sql);
+                bool hasDestructiveKeywords = Regex.IsMatch(
+                    masked,
+                    @"\b(?:UPDATE|DELETE|TRUNCATE)\b",
+                    RegexOptions.IgnoreCase);
+
+                if (hasDestructiveKeywords)
+                {
+                    // A partially parsed script with destructive verbs must not silently bypass the warning.
+                    var first = errors[0];
+                    result.Limitation = string.Format(
+                        LocalizationManager.T("The query could not be fully checked (SQL syntax or unsupported syntax near line {0}). Review it before running. Repeat approval is unavailable for this execution."),
+                        first.Line);
+                }
             }
             return result;
         }

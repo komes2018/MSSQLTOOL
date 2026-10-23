@@ -203,6 +203,7 @@ jobs:
           name: MSSQL Tool v${{ steps.package.outputs.version }}
           body: |
             ## MSSQL Tool v${{ steps.package.outputs.version }}
+            - 彻底修复未写完的 SELECT 语句因语法错误被误报为「当前查询可能修改或删除数据」的严重拦截 Bug
             - 支持 SQL Prompt 级增量热补丁更新（Incremental Schema Patch）：表结构变动时仅查询变更对象，几十毫秒内热替换完成，网络流量与耗时降低 99%
             - 支持 SQL Prompt 经典全局刷新快捷键 `Ctrl + Shift + D`，随时随地一键手动刷新补全元数据
             - 支持窗口激活 (Window Activated) 自动微心跳探测：从其他软件切回 SSMS 时自动无感同步外部数据库变更
