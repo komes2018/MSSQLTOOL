@@ -93,7 +93,7 @@ namespace MSSQLTool.GridQuickFilter
             filterDebounceTimer.Start();
         }
 
-        private void ColumnCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void ColumnCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
             ApplyFilter();
         }
