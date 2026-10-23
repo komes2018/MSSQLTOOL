@@ -305,6 +305,7 @@
     <Compile Include="Completion\CompletionPresenter.cs" />
     <Compile Include="Completion\SqlCompletionAnalyzer.cs" />
     <Compile Include="Completion\SqlMetadataCache.cs" />
+    <Compile Include="Completion\SqlMetadataDiskCache.cs" />
     <Compile Include="Completion\SqlSemanticModel.cs" />
     <Compile Include="Completion\SqlSymbolResolver.cs" />
     <Compile Include="Completion\SqlTextContext.cs" />

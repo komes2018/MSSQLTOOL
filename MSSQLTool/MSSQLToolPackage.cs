@@ -693,6 +693,7 @@ namespace MSSQLTool
                     try
                     {
                         applied = TryApplyConnectionColorForWindow(ServiceCache.ExtensibilityModel?.ActiveWindow);
+                        RefreshActiveWindowConnectionColorIfChanged(force: false);
                     }
                     catch (Exception ex)
                     {

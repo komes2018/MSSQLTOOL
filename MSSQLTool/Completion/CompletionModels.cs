@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json;
 
 namespace MSSQLTool.Completion
 {
@@ -68,7 +69,9 @@ namespace MSSQLTool.Completion
         // Indexes and constraints arrive with the background enrichment pass,
         // after the snapshot is already published to readers; the fully built
         // lists are swapped in atomically instead of being appended to live.
+        [JsonProperty]
         public List<IndexMetadata> Indexes { get; private set; } = new List<IndexMetadata>();
+        [JsonProperty]
         public List<CheckConstraintMetadata> CheckConstraints { get; private set; } = new List<CheckConstraintMetadata>();
         internal void SetIndexes(List<IndexMetadata> value) => Indexes = value ?? new List<IndexMetadata>();
         internal void SetCheckConstraints(List<CheckConstraintMetadata> value) => CheckConstraints = value ?? new List<CheckConstraintMetadata>();
@@ -77,15 +80,18 @@ namespace MSSQLTool.Completion
         // Identifier parts never change after load, so the joins performed for
         // every candidate item are computed once instead of per keystroke.
         private string qualifiedName;
+        [JsonIgnore]
         public string QualifiedName => qualifiedName ?? (qualifiedName = string.Join(".", new[] { Server, Database, Schema, Name }.Where(p => !string.IsNullOrWhiteSpace(p))));
 
         private string descriptionSummary;
+        [JsonIgnore]
         internal string DescriptionSummary => descriptionSummary ?? (descriptionSummary = Kind + (string.IsNullOrWhiteSpace(Database) ? "" : " in " + Database));
 
         private string detail;
         private int detailColumnCount = -1;
 
         /// <summary>Detail string, rebuilt if the column list changed since the last build (e.g. synonym columns resolved late).</summary>
+        [JsonIgnore]
         internal string CachedDetail
         {
             get
@@ -182,6 +188,7 @@ namespace MSSQLTool.Completion
         public byte Scale { get; set; }
         public string DefaultDefinition { get; set; }
         public string Description { get; set; }
+        [JsonIgnore]
         public string TypeDisplay => typeDisplay ?? (typeDisplay = SqlTypeDisplay.Format(DataType, MaxLength, Precision, Scale));
         private string typeDisplay;
     }
@@ -244,8 +251,10 @@ namespace MSSQLTool.Completion
 
     internal sealed class MetadataSnapshot
     {
+        [JsonIgnore]
         public static readonly MetadataSnapshot Empty = new MetadataSnapshot();
         public DateTime LoadedUtc { get; set; }
+        public DateTime? SchemaLastModifiedUtc { get; set; }
         public string Scope { get; set; }
         public string ErrorMessage { get; set; }
         public bool IsPartial { get; set; }
@@ -259,6 +268,7 @@ namespace MSSQLTool.Completion
         // Foreign keys are loaded by the background enrichment pass; the whole
         // list is swapped in atomically so concurrent readers never enumerate
         // a list that is still being built.
+        [JsonProperty]
         public List<ForeignKeyMetadata> ForeignKeys { get; private set; } = new List<ForeignKeyMetadata>();
         internal void SetForeignKeys(List<ForeignKeyMetadata> value)
         {
@@ -267,6 +277,7 @@ namespace MSSQLTool.Completion
             // must be rebuilt to pick up the enriched list.
             index = null;
         }
+        [JsonIgnore]
         public string StatusText => !string.IsNullOrWhiteSpace(ErrorMessage)
             ? (IsPartial
                 ? LocalizationManager.T("metadata partially loaded")

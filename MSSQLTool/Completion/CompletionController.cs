@@ -109,10 +109,22 @@ namespace MSSQLTool.Completion
                 // and made the popup visibly disappear/repaint on every keystroke.
                 bool hasCachedMetadata = connection != null
                     && SqlMetadataCache.TryGetCached(connection, out MetadataSnapshot _);
-                if (context.Kind != CompletionContextKind.Member && !hasCachedMetadata)
-                    PostItems(context, SqlCompletionAnalyzer.BuildItems(context, MetadataSnapshot.Empty), MetadataSnapshot.Empty, token);
-                else if (context.Kind == CompletionContextKind.Member && !hasCachedMetadata)
-                    _ = ShowLoadingFrameAsync(context, connection, token);
+
+                bool isObjectOrMemberContext = context.Kind == CompletionContextKind.DataSource
+                    || context.Kind == CompletionContextKind.Member
+                    || context.Kind == CompletionContextKind.ExecuteObject;
+
+                if (!hasCachedMetadata)
+                {
+                    if (isObjectOrMemberContext)
+                    {
+                        _ = ShowLoadingFrameAsync(context, connection, token);
+                    }
+                    else
+                    {
+                        PostItems(context, SqlCompletionAnalyzer.BuildItems(context, MetadataSnapshot.Empty), MetadataSnapshot.Empty, token);
+                    }
+                }
 
                 MetadataSnapshot metadata = await SqlMetadataCache.GetAsync(connection, token).ConfigureAwait(false);
                 metadata = await LoadReferencedDatabasesAsync(context, connection, metadata, token).ConfigureAwait(false);

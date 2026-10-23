@@ -33,7 +33,7 @@ namespace MSSQLTool.Completion
             if (info == null || string.IsNullOrWhiteSpace(info.FullConnectionString)) return Task.FromResult(MetadataSnapshot.Empty);
             string key = GetKey(info.FullConnectionString);
             Entry entry = GetOrCreate(key, () => Load(info),
-                LocalizationManager.T("Loading SQL completion metadata..."));
+                LocalizationManager.T("Loading SQL completion metadata..."), info, null);
             return AwaitWithCancellation(entry.Task, token);
         }
 
@@ -42,7 +42,7 @@ namespace MSSQLTool.Completion
             if (info == null || string.IsNullOrWhiteSpace(info.FullConnectionString) || string.IsNullOrWhiteSpace(database)) return Task.FromResult(MetadataSnapshot.Empty);
             string key = GetKey(info.FullConnectionString, database);
             Entry entry = GetOrCreate(key, () => Load(info, database),
-                LocalizationManager.Format("Loading SQL completion metadata for database {0}...", database));
+                LocalizationManager.Format("Loading SQL completion metadata for database {0}...", database), info, database);
             return AwaitWithCancellation(entry.Task, token);
         }
 
@@ -63,12 +63,32 @@ namespace MSSQLTool.Completion
         public static Task PrefetchAsync(ScriptFactoryAccess.ConnectionInfo info)
         {
             if (info == null || string.IsNullOrWhiteSpace(info.FullConnectionString)) return Task.CompletedTask;
-            Entry entry = GetOrCreate(GetKey(info.FullConnectionString), () => Load(info), null);
+            Entry entry = GetOrCreate(GetKey(info.FullConnectionString), () => Load(info), null, info, null);
             return entry.Task;
         }
 
-        private static Entry GetOrCreate(string key, Func<MetadataSnapshot> loader, string statusMessage)
+        private static Entry GetOrCreate(string key, Func<MetadataSnapshot> loader, string statusMessage, ScriptFactoryAccess.ConnectionInfo info = null, string database = null)
         {
+            if (Cache.TryGetValue(key, out Entry existing) && IsFresh(existing))
+            {
+                existing.CreatedUtc = DateTime.UtcNow;
+                return existing;
+            }
+
+            // Fast path: load from persistent disk cache if not in memory
+            if (info != null && !string.IsNullOrWhiteSpace(info.ServerName))
+            {
+                string targetDb = database ?? info.Database;
+                if (string.IsNullOrWhiteSpace(targetDb))
+                {
+                    try { targetDb = new SqlConnectionStringBuilder(info.FullConnectionString).InitialCatalog; } catch { }
+                }
+                if (SqlMetadataDiskCache.TryLoad(info.ServerName, targetDb, out MetadataSnapshot diskSnapshot))
+                {
+                    return SeedMemoryFromDisk(key, diskSnapshot, info, targetDb);
+                }
+            }
+
             var replacement = new Entry
             {
                 CreatedUtc = DateTime.UtcNow,
@@ -105,6 +125,69 @@ namespace MSSQLTool.Completion
             if (Cache.TryUpdate(key, replacement, current))
                 return replacement;
             return Cache.GetOrAdd(key, replacement);
+        }
+
+        private static Entry SeedMemoryFromDisk(string key, MetadataSnapshot diskSnapshot, ScriptFactoryAccess.ConnectionInfo info, string database)
+        {
+            var diskEntry = new Entry
+            {
+                CreatedUtc = DateTime.UtcNow,
+                Work = new Lazy<Task<MetadataSnapshot>>(() => Task.FromResult(diskSnapshot))
+            };
+            Cache[key] = diskEntry;
+
+            if (info != null)
+            {
+                StartBackgroundRevalidation(info, database, diskSnapshot, key);
+            }
+
+            return diskEntry;
+        }
+
+        private static void StartBackgroundRevalidation(ScriptFactoryAccess.ConnectionInfo info, string database, MetadataSnapshot diskSnapshot, string key)
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    string targetDb = database;
+                    if (string.IsNullOrWhiteSpace(targetDb))
+                    {
+                        try { targetDb = new SqlConnectionStringBuilder(info.FullConnectionString).InitialCatalog; } catch { }
+                    }
+
+                    using (var connection = CreateMetadataConnection(info, targetDb))
+                    {
+                        DateTime? latestModify = SqlMetadataDiskCache.QueryMaxModifyDate(connection);
+                        if (latestModify.HasValue && diskSnapshot.SchemaLastModifiedUtc.HasValue && latestModify.Value <= diskSnapshot.SchemaLastModifiedUtc.Value)
+                        {
+                            // Schema un-changed: refresh local timestamp and keep using disk snapshot
+                            if (Cache.TryGetValue(key, out Entry currentEntry))
+                            {
+                                currentEntry.CreatedUtc = DateTime.UtcNow;
+                            }
+                            return;
+                        }
+                    }
+
+                    // Schema changed or unverified: reload silently in background
+                    MetadataSnapshot fresh = Load(info, targetDb);
+                    if (fresh != null && fresh.Objects != null && fresh.Objects.Count > 0)
+                    {
+                        var freshEntry = new Entry
+                        {
+                            CreatedUtc = DateTime.UtcNow,
+                            Work = new Lazy<Task<MetadataSnapshot>>(() => Task.FromResult(fresh))
+                        };
+                        Cache[key] = freshEntry;
+                        SqlMetadataDiskCache.SaveAsync(info.ServerName, targetDb, fresh);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MSSQLToolPackage._logger?.Warn(ex, "Background schema revalidation failed");
+                }
+            });
         }
 
         private static async void StartBackgroundRefresh(Entry entry)
@@ -199,10 +282,17 @@ namespace MSSQLTool.Completion
             foreach (string key in Cache.Keys)
                 if (key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                     Cache.TryRemove(key, out Entry _);
+
+            SqlMetadataDiskCache.Invalidate(info.ServerName, info.Database);
             RaiseInvalidated();
         }
 
-        public static void InvalidateAll() => Cache.Clear();
+        public static void InvalidateAll()
+        {
+            Cache.Clear();
+            SqlMetadataDiskCache.InvalidateAll();
+            RaiseInvalidated();
+        }
 
         /// <summary>Raised after cache entries were dropped so dependent caches (e.g. merged cross-database snapshots) can be discarded.</summary>
         internal static event Action Invalidated;
@@ -227,11 +317,31 @@ namespace MSSQLTool.Completion
         {
             snapshot = null;
             if (info == null || string.IsNullOrWhiteSpace(info.FullConnectionString)) return false;
-            if (!Cache.TryGetValue(GetKey(info.FullConnectionString), out Entry entry) || !entry.Work.IsValueCreated) return false;
-            Task<MetadataSnapshot> task = entry.Task;
-            if (!task.IsCompleted || task.IsCanceled || task.IsFaulted) return false;
-            snapshot = task.Result;
-            return snapshot != null;
+            string key = GetKey(info.FullConnectionString);
+            if (Cache.TryGetValue(key, out Entry entry) && entry.Work.IsValueCreated)
+            {
+                Task<MetadataSnapshot> task = entry.Task;
+                if (task.IsCompleted && !task.IsCanceled && !task.IsFaulted)
+                {
+                    snapshot = task.Result;
+                    if (snapshot != null && snapshot.Objects.Count > 0) return true;
+                }
+            }
+
+            // Fast path: try loading instantly from persistent local disk cache
+            string db = info.Database;
+            if (string.IsNullOrWhiteSpace(db))
+            {
+                try { db = new SqlConnectionStringBuilder(info.FullConnectionString).InitialCatalog; } catch { }
+            }
+            if (SqlMetadataDiskCache.TryLoad(info.ServerName, db, out MetadataSnapshot diskSnapshot))
+            {
+                snapshot = diskSnapshot;
+                SeedMemoryFromDisk(key, diskSnapshot, info, db);
+                return true;
+            }
+
+            return false;
         }
 
         public static async Task<MetadataSnapshot> RefreshAsync(ScriptFactoryAccess.ConnectionInfo info, CancellationToken token)
@@ -240,7 +350,7 @@ namespace MSSQLTool.Completion
             Invalidate(info);
             string key = GetKey(info.FullConnectionString);
             Entry entry = GetOrCreate(key, () => Load(info),
-                LocalizationManager.T("Refreshing SQL completion metadata..."));
+                LocalizationManager.T("Refreshing SQL completion metadata..."), info, null);
             return await AwaitWithCancellation(entry.Task, token).ConfigureAwait(false);
         }
 
@@ -360,6 +470,7 @@ namespace MSSQLTool.Completion
                 using (var connection = CreateMetadataConnection(info, database))
                 {
                     connection.Open();
+                    result.SchemaLastModifiedUtc = SqlMetadataDiskCache.QueryMaxModifyDate(connection);
                     LoadProgress.Step("objects");
                     TryLoadObjects(connection, result, errors);
                     LoadProgress.Step("objects", result.Objects.Count);
@@ -382,7 +493,10 @@ namespace MSSQLTool.Completion
                 result.IsPartial = result.Objects.Count > 0 || result.Parameters.Count > 0;
             }
             if (result.Objects.Count > 0)
+            {
+                SqlMetadataDiskCache.SaveAsync(builder.DataSource, builder.InitialCatalog, result);
                 _ = Task.Run(() => Enrich(info, database, result));
+            }
             return result;
         }
 
@@ -419,6 +533,13 @@ namespace MSSQLTool.Completion
                     // those caches so the next popup picks the enriched data.
                     foreach (DatabaseObjectMetadata item in result.Objects)
                         item.ResetDetailCache();
+
+                    string targetDb = database;
+                    if (string.IsNullOrWhiteSpace(targetDb))
+                    {
+                        try { targetDb = new SqlConnectionStringBuilder(info.FullConnectionString).InitialCatalog; } catch { }
+                    }
+                    SqlMetadataDiskCache.SaveAsync(info.ServerName, targetDb, result);
                 }
             }
             catch (Exception ex) { RecordOptionalFailure("enrichment pass", ex); }

@@ -203,10 +203,14 @@ jobs:
           name: MSSQL Tool v${{ steps.package.outputs.version }}
           body: |
             ## MSSQL Tool v${{ steps.package.outputs.version }}
+            - 智能 SQL 补全支持本地磁盘高速持久化缓存，新建查询表名秒级即出，彻底告别网络冷启动等待
+            - 支持极速心跳保鲜机制（Stale-While-Revalidate），后台毫秒级探测数据库结构变更并静默更新
+            - 修复新建查询打字时因网络延迟误弹空表假列表并中断后续补全的问题
+            - 增强新建查询窗口连接建立时的自动预热感知重试
             - 智能 SQL 自动补全支持 Enter 键直接录入上屏（可在设置中开关）
             - 支持自定义高频缩写（如 `ssf` -> `SELECT * FROM`）及代码片段管理器
             - 支持按住 Ctrl 键时在可跳转对象下方绘制下划线与手形光标，点击即转到定义（F12）
-            - 彻底修复操作数据安全告警弹窗黑底黑字高对比度主题问题
+            - 更新设置支持自定义代理地址并提供连通性测试
             - 支持 SSMS 18 / 19 / 20 / 21 / 22
           files: dist/*.vsix
           draft: false
