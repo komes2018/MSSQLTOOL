@@ -446,6 +446,9 @@ namespace MSSQLTool.Completion
         public bool IsJoinSource { get; set; }
         public bool IsDataSourceMember { get; set; }
         public bool HasOmittedSchemaQualifier { get; set; }
+        public bool IsOnClause { get; set; }
+        public string JoinTargetTable { get; set; }
+        public string JoinTargetAlias { get; set; }
     }
 
     internal sealed class DeclaredVariableInfo

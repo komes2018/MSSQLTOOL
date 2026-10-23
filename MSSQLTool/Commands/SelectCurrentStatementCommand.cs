@@ -63,26 +63,47 @@ namespace MSSQLTool
                 if (selection == null)
                     return;
 
-                int cursorLine = selection.ActivePoint.Line;
-                int cursorColumn = selection.ActivePoint.DisplayColumn;
+                bool alreadySelected = !string.IsNullOrWhiteSpace(selection.Text) &&
+                    (selection.TopLine != selection.BottomLine || selection.TopPoint.DisplayColumn != selection.BottomPoint.DisplayColumn);
 
-                string fullText = textDoc.CreateEditPoint(textDoc.StartPoint).GetText(textDoc.EndPoint);
+                if (!alreadySelected)
+                {
+                    int cursorLine = selection.ActivePoint.Line;
+                    int cursorColumn = selection.ActivePoint.DisplayColumn;
 
-                if (string.IsNullOrEmpty(fullText))
-                    return;
+                    string fullText = textDoc.CreateEditPoint(textDoc.StartPoint).GetText(textDoc.EndPoint);
 
-                // Try parsing with TSql170Parser
-                if (TrySelectWithParser(fullText, cursorLine, cursorColumn, selection))
-                    return;
+                    if (string.IsNullOrEmpty(fullText))
+                        return;
 
-                // Fallback: GO-based batch detection
-                TrySelectWithFallback(fullText, cursorLine, cursorColumn, selection);
+                    // Try parsing with TSql170Parser
+                    bool selected = TrySelectWithParser(fullText, cursorLine, cursorColumn, selection);
+                    if (!selected)
+                    {
+                        // Fallback: GO-based batch detection
+                        TrySelectWithFallback(fullText, cursorLine, cursorColumn, selection);
+                    }
+                }
+
+                // If a statement or block is selected, execute it directly
+                if (!string.IsNullOrWhiteSpace(selection.Text))
+                {
+                    try
+                    {
+                        dte.ExecuteCommand("Query.Execute");
+                        ShowStatusHint(LocalizationManager.T("Executing current statement..."));
+                    }
+                    catch (Exception exCmd)
+                    {
+                        ShowStatusHint(LocalizationManager.Format("Statement selected, could not execute: {0}", exCmd.Message));
+                    }
+                }
             }
             catch (Exception ex)
             {
                 LocalizedMessageBox.Show(
-                    LocalizationManager.Format("Could not select the current statement: {0}", ex.Message),
-                    "Select Current Statement",
+                    LocalizationManager.Format("Could not execute the current statement: {0}", ex.Message),
+                    "Execute Current Statement",
                     System.Windows.MessageBoxButton.OK,
                     System.Windows.MessageBoxImage.Error);
             }

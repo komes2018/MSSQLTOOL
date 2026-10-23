@@ -239,6 +239,9 @@ namespace MSSQLTool.RegressionTests
             Run("JOIN infers same-name key columns", TestSameNameSmartJoin);
             Run("JOIN honors custom column rule", TestCustomJoinRule);
             Run("Alias rules honor mappings and prefixes", TestAliasRules);
+            Run("JOIN ON clause detects target and conditions", TestSmartJoinOnClause);
+            Run("INSERT template supports omitted INTO", TestInsertTemplateOmittedInto);
+            Run("EXEC parameters expands formatted template", TestExecuteParametersExpandedTemplate);
             Run("Completion items expose object details", TestCompletionDetails);
             Run("Column picker commits selected columns", TestColumnPickerCommit);
             Run("DDL execution invalidates metadata", TestMetadataInvalidationDetection);
@@ -552,6 +555,65 @@ namespace MSSQLTool.RegressionTests
             Equal("so2", SqlCompletionAnalyzer.MakeAlias(table, new[] { "so" }, custom));
             custom.customAliases = string.Empty;
             Equal("so", SqlCompletionAnalyzer.MakeAlias(table, Array.Empty<string>(), custom));
+
+            var tableUnderscore = new DatabaseObjectMetadata { Schema = "dbo", Name = "EMR_CPOE_BLSCWJ", Kind = CompletionItemKind.Table };
+            Equal("ecb", SqlCompletionAnalyzer.MakeAlias(tableUnderscore, Array.Empty<string>(), custom));
+            var tableMixed = new DatabaseObjectMetadata { Schema = "dbo", Name = "user_order_detail", Kind = CompletionItemKind.Table };
+            Equal("uod", SqlCompletionAnalyzer.MakeAlias(tableMixed, Array.Empty<string>(), custom));
+        }
+
+        private static void TestSmartJoinOnClause()
+        {
+            string sql = "SELECT * FROM dbo.Orders o JOIN dbo.OrderDetails od ON ";
+            var context = SqlCompletionAnalyzer.Analyze(sql, sql.Length);
+            Equal(CompletionContextKind.Predicate, context.Kind);
+            True(context.IsOnClause);
+            Equal("dbo.OrderDetails", context.JoinTargetTable);
+            Equal("od", context.JoinTargetAlias);
+
+            var metadata = new MetadataSnapshot();
+            var orders = new DatabaseObjectMetadata { Schema = "dbo", Name = "Orders", Kind = CompletionItemKind.Table };
+            orders.Columns.Add(new ColumnMetadata { Name = "OrderID", DataType = "int" });
+            var orderDetails = new DatabaseObjectMetadata { Schema = "dbo", Name = "OrderDetails", Kind = CompletionItemKind.Table };
+            orderDetails.Columns.Add(new ColumnMetadata { Name = "OrderID", DataType = "int" });
+            orderDetails.Columns.Add(new ColumnMetadata { Name = "DetailID", DataType = "int" });
+            metadata.Objects.Add(orders);
+            metadata.Objects.Add(orderDetails);
+
+            var items = SqlCompletionAnalyzer.BuildItems(context, metadata);
+            True(items.Any(i => i.Kind == CompletionItemKind.Join && i.InsertText.Contains("od.[OrderID] = o.[OrderID]") && i.Score >= 190));
+        }
+
+        private static void TestInsertTemplateOmittedInto()
+        {
+            string sql = "INSERT Customers ";
+            var context = SqlCompletionAnalyzer.Analyze(sql, sql.Length);
+            Equal(CompletionContextKind.InsertBody, context.Kind);
+            Equal("Customers", context.TargetObject);
+
+            var metadata = new MetadataSnapshot();
+            var cust = new DatabaseObjectMetadata { Schema = "dbo", Name = "Customers", Kind = CompletionItemKind.Table };
+            cust.Columns.Add(new ColumnMetadata { Name = "CustomerID", DataType = "int" });
+            cust.Columns.Add(new ColumnMetadata { Name = "CustomerName", DataType = "nvarchar(50)" });
+            metadata.Objects.Add(cust);
+
+            var items = SqlCompletionAnalyzer.BuildItems(context, metadata);
+            True(items.Any(i => i.DisplayText == "(INSERT columns and VALUES)" && i.Score == 200));
+            True(items.Any(i => i.DisplayText == "(INSERT columns only)" && i.Score == 195));
+        }
+
+        private static void TestExecuteParametersExpandedTemplate()
+        {
+            string sql = "EXEC dbo.usp_SaveRecord ";
+            var context = SqlCompletionAnalyzer.Analyze(sql, sql.Length);
+            Equal(CompletionContextKind.ExecuteArguments, context.Kind);
+
+            var metadata = new MetadataSnapshot();
+            metadata.Parameters.Add(new ParameterMetadata { ObjectName = "dbo.usp_SaveRecord", Name = "@Id", DataType = "int", TypeDisplay = "int", Ordinal = 1 });
+            metadata.Parameters.Add(new ParameterMetadata { ObjectName = "dbo.usp_SaveRecord", Name = "@Name", DataType = "nvarchar", TypeDisplay = "nvarchar(50)", Ordinal = 2 });
+
+            var items = SqlCompletionAnalyzer.BuildItems(context, metadata);
+            True(items.Any(i => i.DisplayText == "(all parameters)" && i.Score == 200 && i.InsertText.Contains("@Id") && i.InsertText.Contains("@Name")));
         }
 
         private static void TestCompletionDetails()

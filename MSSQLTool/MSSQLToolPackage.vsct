@@ -197,6 +197,19 @@
           <ToolTipText>在新的透视表窗口中汇总分析当前查询结果</ToolTipText>
         </Strings>
       </Button>
+
+      <Button guid="guidMSSQLToolPackageCmdSet" id="GridQuickFilterCommand" priority="0x0130" type="Button">
+        <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Export" />
+        <Icon guid="guidSearch" id="bmpSearch" />
+        <CommandFlag>IconAndText</CommandFlag>
+        <Strings>
+          <ButtonText>结果集快速查找与过滤</ButtonText>
+          <CommandName>MSSQL Tool: 结果集快速查找与过滤</CommandName>
+          <CanonicalName>MSSQLTool.GridQuickFilter</CanonicalName>
+          <LocCanonicalName>MSSQLTool.GridQuickFilter</LocCanonicalName>
+          <ToolTipText>快速搜索与即时过滤当前查询结果网格中的数据</ToolTipText>
+        </Strings>
+      </Button>
       
       <Button guid="guidMSSQLToolPackageCmdSet" id="ScriptCurrentObject" priority="0x0200" type="Button">
         <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Script" />
@@ -255,11 +268,11 @@
         <Icon guid="guidSelect" id="bmpSelect" />
         <CommandFlag>IconAndText</CommandFlag>
         <Strings>
-          <ButtonText>选择当前语句</ButtonText>
-          <CommandName>MSSQL Tool: 选择当前语句</CommandName>
-          <CanonicalName>MSSQLTool.SelectCurrentStatement</CanonicalName>
-          <LocCanonicalName>MSSQLTool.SelectCurrentStatement</LocCanonicalName>
-          <ToolTipText>选择光标所在的 SQL 语句（Shift+F5）</ToolTipText>
+          <ButtonText>执行当前语句</ButtonText>
+          <CommandName>MSSQL Tool: 执行当前语句</CommandName>
+          <CanonicalName>MSSQLTool.ExecuteCurrentStatement</CanonicalName>
+          <LocCanonicalName>MSSQLTool.ExecuteCurrentStatement</LocCanonicalName>
+          <ToolTipText>自动识别光标所在单条 SQL 语句并直接执行 (Shift+F5)，无需手动框选</ToolTipText>
         </Strings>
       </Button>
 
@@ -650,6 +663,7 @@
       <IDSymbol name="DataCompareCommand" value="4166" />
       <IDSymbol name="SortSelectedTextAscending" value="4167" />
       <IDSymbol name="SortSelectedTextDescending" value="4168" />
+      <IDSymbol name="GridQuickFilterCommand" value="4169" />
 
     </GuidSymbol>
 

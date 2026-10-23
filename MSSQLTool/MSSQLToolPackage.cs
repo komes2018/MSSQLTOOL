@@ -68,6 +68,7 @@ namespace MSSQLTool
     [ProvideToolWindow(typeof(HealthDashboard_Server))]
     [ProvideToolWindow(typeof(DataCompare.DataCompareWindow), MultiInstances = true, Style = VsDockStyle.MDI)]
     [ProvideToolWindow(typeof(PivotGrid.PivotGridWindow), MultiInstances = true, Style = VsDockStyle.MDI)]
+    [ProvideToolWindow(typeof(GridQuickFilter.GridQuickFilterWindow), MultiInstances = true, Style = VsDockStyle.MDI)]
     [ProvideToolWindow(typeof(JobQuickView.JobQuickViewPane), MultiInstances = true, Style = VsDockStyle.MDI, DocumentLikeTool = true, Transient = true)]
     [ProvideToolWindow(typeof(DataTransferWindow))]
     [ProvideToolWindow(typeof(SqlServerBuildsWindow))]
@@ -388,6 +389,7 @@ namespace MSSQLTool
                 await ExportGridToExcelCommand.InitializeAsync(this);
                 await DataCompare.DataCompareWindowCommand.InitializeAsync(this);
                 await PivotGrid.PivotGridCommand.InitializeAsync(this);
+                await GridQuickFilter.GridQuickFilterCommand.InitializeAsync(this);
                 await ToolWindowGridToEmailCommand.InitializeAsync(this);
                 _jobQuickViewCommand = await JobQuickView.JobQuickViewCommand.InitializeAsync(this);
 

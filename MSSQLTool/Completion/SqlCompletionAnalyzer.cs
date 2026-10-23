@@ -16,8 +16,8 @@ namespace MSSQLTool.Completion
         // matching dominated profile time on large statements.
         private static readonly Regex PrefixPattern = new Regex(@"(?<prefix>[@#\w$\[\]]*)$", RegexOptions.Compiled);
         private static readonly Regex InsertColumnListPattern = new Regex(@"\bINSERT\s+(?:INTO\s+)?(?<target>(?:" + Id + @"(?:\s*\.\s*" + Id + @"){0,3}|" + Id + @"(?:\s*\.\s*" + Id + @")?\s*\.\s*\.\s*" + Id + @"))\s*\([^)]*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly Regex CompletedInsertTargetPattern = new Regex(@"\bINSERT\s+INTO\s+(?<target>" + Id + @"(?:\s*\.\s*" + Id + @"){0,3})\s+$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly Regex InsertBodyPattern = new Regex(@"\bINSERT\s+INTO\s+(?<target>" + Id + @"(?:\s*\.\s*" + Id + @"){0,3})\s+$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex CompletedInsertTargetPattern = new Regex(@"\bINSERT(?:\s+INTO)?\s+(?<target>" + Id + @"(?:\s*\.\s*" + Id + @"){0,3})\s+$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex InsertBodyPattern = new Regex(@"\bINSERT(?:\s+INTO)?\s+(?<target>" + Id + @"(?:\s*\.\s*" + Id + @"){0,3})\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex OmittedSchemaMemberPattern = new Regex(@"(?<qual>" + Id + @"(?:\s*\.\s*" + Id + @")?)\s*\.\s*\.\s*(?<prefix>" + Id + @")?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex MemberPattern = new Regex(@"(?<qual>" + Id + @"(?:\s*\.\s*" + Id + @"){0,2})\s*\.\s*(?<prefix>" + Id + @")?$", RegexOptions.Compiled);
         private static readonly Regex JoinSourcePattern = new Regex(@"\bJOIN\s+" + Id + @"(?:\s*\.\s*" + Id + @"){0,2}\s*\.\s*(?:" + Id + @")?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -214,6 +214,12 @@ namespace MSSQLTool.Completion
             else context.Kind = DetectClauseContext(withoutPrefix, masked, ref clauseScan);
             if (context.Kind == CompletionContextKind.Predicate)
             {
+                if (clauseScan != null && clauseScan.TryDetectOnClause(withoutPrefix.Length, out string joinTarget, out string joinAlias))
+                {
+                    context.IsOnClause = true;
+                    context.JoinTargetTable = joinTarget;
+                    context.JoinTargetAlias = joinAlias;
+                }
                 Match activeColumn = PredicateColumnPattern.Matches(masked).Cast<Match>().LastOrDefault();
                 if (activeColumn != null && activeColumn.Success) context.ActiveColumn = CleanQualified(activeColumn.Groups["column"].Value);
             }
@@ -279,6 +285,83 @@ namespace MSSQLTool.Completion
                     return CompletionContextKind.General;
                 }
                 catch { return CompletionContextKind.General; }
+            }
+
+            public bool TryDetectOnClause(int maxOffset, out string targetTable, out string targetAlias)
+            {
+                targetTable = null;
+                targetAlias = null;
+                try
+                {
+                    int count = tokens.Count;
+                    while (count > 0 && tokens[count - 1].Offset + (tokens[count - 1].Text?.Length ?? 0) > maxOffset) count--;
+                    if (count == 0) return false;
+                    int caretDepth = depths[count - 1] + (tokens[count - 1].TokenType == TSqlTokenType.LeftParenthesis ? 1 : 0);
+                    int clause = -1;
+                    for (int i = 0; i < count; i++)
+                        if (depths[i] == caretDepth && IsClauseToken(tokens[i].Text)) clause = i;
+                    if (clause < 0 || !string.Equals(tokens[clause].Text, "ON", StringComparison.OrdinalIgnoreCase)) return false;
+
+                    int joinIndex = -1;
+                    for (int i = clause - 1; i >= 0; i--)
+                    {
+                        if (depths[i] == caretDepth && string.Equals(tokens[i].Text, "JOIN", StringComparison.OrdinalIgnoreCase))
+                        {
+                            joinIndex = i;
+                            break;
+                        }
+                    }
+                    if (joinIndex < 0) return false;
+
+                    var between = new List<TSqlParserToken>();
+                    for (int i = joinIndex + 1; i < clause; i++)
+                    {
+                        if (depths[i] == caretDepth)
+                            between.Add(tokens[i]);
+                    }
+                    if (between.Count == 0) return false;
+
+                    int asIndex = -1;
+                    for (int i = 0; i < between.Count; i++)
+                    {
+                        if (string.Equals(between[i].Text, "AS", StringComparison.OrdinalIgnoreCase))
+                        {
+                            asIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (asIndex >= 0)
+                    {
+                        targetTable = string.Concat(between.Take(asIndex).Select(t => t.Text));
+                        targetAlias = string.Concat(between.Skip(asIndex + 1).Select(t => t.Text)).Trim();
+                    }
+                    else
+                    {
+                        if (between.Count >= 2 && (between[between.Count - 1].TokenType == TSqlTokenType.Identifier || between[between.Count - 1].TokenType == TSqlTokenType.QuotedIdentifier))
+                        {
+                            if (between[between.Count - 2].Text == ".")
+                            {
+                                targetTable = string.Concat(between.Select(t => t.Text));
+                                targetAlias = null;
+                            }
+                            else
+                            {
+                                targetAlias = between[between.Count - 1].Text;
+                                targetTable = string.Concat(between.Take(between.Count - 1).Select(t => t.Text));
+                            }
+                        }
+                        else
+                        {
+                            targetTable = string.Concat(between.Select(t => t.Text));
+                            targetAlias = null;
+                        }
+                    }
+                    targetTable = CleanQualified(targetTable);
+                    targetAlias = Clean(targetAlias);
+                    return !string.IsNullOrEmpty(targetTable);
+                }
+                catch { return false; }
             }
         }
 
@@ -640,7 +723,12 @@ namespace MSSQLTool.Completion
                         AddBuiltInTableFunctions(result, metadata.CompatibilityLevel);
                         break;
                     case CompletionContextKind.MergeSource: result.AddRange(objects.Where(IsDataSource).Select(o => ObjectItem(o, 55, false))); break;
-                    case CompletionContextKind.Predicate: AddScopedColumns(result, context, metadata, 85, false); AddPredicateItems(result); AddTypedValues(result, context, metadata); break;
+                    case CompletionContextKind.Predicate:
+                        if (context.IsOnClause) AddJoinOnConditions(result, context, metadata);
+                        AddScopedColumns(result, context, metadata, 85, false);
+                        AddPredicateItems(result);
+                        AddTypedValues(result, context, metadata);
+                        break;
                     case CompletionContextKind.SelectList: AddSelectListItems(result, context, metadata, objects); break;
                     case CompletionContextKind.WindowPartitionBy:
                     case CompletionContextKind.WindowOrderBy: AddWindowItems(result, context, metadata, objects); break;
@@ -955,7 +1043,25 @@ namespace MSSQLTool.Completion
         {
             var parameters = metadata.Parameters.Where(p => ObjectMatches(p.ObjectName, context.TargetObject) && !context.UsedParameters.Contains(p.Name) && !string.IsNullOrEmpty(p.Name)).ToList();
             result.AddRange(parameters.Select(p => new CompletionItem { DisplayText = p.Name, InsertText = p.Name + " = ", Kind = CompletionItemKind.Parameter, Description = p.TypeDisplay + (p.HasDefaultValue ? " optional" : string.Empty) + (p.IsOutput ? " OUTPUT" : string.Empty), Score = 100 }));
-            if (parameters.Count > 1 && context.UsedParameters.Count == 0) result.Add(new CompletionItem { DisplayText = "(all parameters)", InsertText = string.Join(", ", parameters.Select((p, i) => p.Name + " = ${" + (i + 1) + ":" + (p.HasDefaultValue ? "DEFAULT" : "NULL") + "}" + (p.IsOutput ? " OUTPUT" : string.Empty))), Kind = CompletionItemKind.Snippet, Description = parameters.Count + " parameters", Score = 130 });
+            if (parameters.Count > 0 && context.UsedParameters.Count == 0)
+            {
+                int maxParamLen = Math.Min(35, parameters.Max(p => p.Name.Length));
+                string formattedParams = string.Join("," + Environment.NewLine + "    ", parameters.Select((p, i) =>
+                {
+                    string defaultVal = p.HasDefaultValue ? "DEFAULT" : (p.TypeDisplay.ToLowerInvariant().Contains("char") ? "''" : "NULL");
+                    string assign = p.Name.PadRight(maxParamLen) + " = ${" + (i + 1) + ":" + defaultVal + "}" + (p.IsOutput ? " OUTPUT" : string.Empty);
+                    return assign.PadRight(maxParamLen + 16) + "-- " + p.TypeDisplay + (p.HasDefaultValue ? " (optional)" : string.Empty);
+                }));
+
+                result.Add(new CompletionItem
+                {
+                    DisplayText = "(all parameters)",
+                    InsertText = Environment.NewLine + "    " + formattedParams,
+                    Kind = CompletionItemKind.Snippet,
+                    Description = parameters.Count + " parameters with types",
+                    Score = 200
+                });
+            }
         }
 
         private static void AddValues(List<CompletionItem> result, CompletionContext context, MetadataSnapshot metadata)
@@ -1067,9 +1173,42 @@ namespace MSSQLTool.Completion
             }
             var columns = target.Columns.Where(c => !c.IsIdentity && !c.IsComputed && !string.Equals(c.DataType, "timestamp", StringComparison.OrdinalIgnoreCase) && !string.Equals(c.DataType, "rowversion", StringComparison.OrdinalIgnoreCase)).ToList();
             if (columns.Count == 0) return;
-            string names = string.Join("," + Environment.NewLine + "    ", columns.Select(c => Quote(c.Name)));
-            string values = string.Join("," + Environment.NewLine + "    ", columns.Select((c, i) => "${" + (i + 1) + ":" + DefaultValue(c) + "}"));
-            result.Add(new CompletionItem { DisplayText = "(INSERT columns and VALUES)", InsertText = Environment.NewLine + "(" + Environment.NewLine + "    " + names + Environment.NewLine + ")" + Environment.NewLine + "VALUES" + Environment.NewLine + "(" + Environment.NewLine + "    " + values + Environment.NewLine + ");", Kind = CompletionItemKind.Snippet, Description = columns.Count + " writable columns", Score = 140 });
+
+            // 1. Full template with aligned types and VALUES comments
+            int maxNameLen = Math.Min(35, columns.Max(c => Quote(c.Name).Length));
+            string namesWithComments = string.Join("," + Environment.NewLine + "    ", columns.Select(c =>
+            {
+                string quoted = Quote(c.Name);
+                string padded = quoted.Length < maxNameLen ? quoted.PadRight(maxNameLen) : quoted + " ";
+                return padded + "-- " + c.TypeDisplay;
+            }));
+
+            string valuesWithComments = string.Join("," + Environment.NewLine + "    ", columns.Select((c, i) =>
+            {
+                string val = "${" + (i + 1) + ":" + DefaultValue(c) + "}";
+                string padded = val.Length < 10 ? val.PadRight(10) : val + " ";
+                return padded + "-- " + c.Name;
+            }));
+
+            result.Add(new CompletionItem
+            {
+                DisplayText = "(INSERT columns and VALUES)",
+                InsertText = Environment.NewLine + "(" + Environment.NewLine + "    " + namesWithComments + Environment.NewLine + ")" + Environment.NewLine + "VALUES" + Environment.NewLine + "(" + Environment.NewLine + "    " + valuesWithComments + Environment.NewLine + ");",
+                Kind = CompletionItemKind.Snippet,
+                Description = columns.Count + " writable columns with types",
+                Score = 200
+            });
+
+            // 2. Column names only (for INSERT INTO ... SELECT ...)
+            string colNamesOnly = string.Join("," + Environment.NewLine + "    ", columns.Select(c => Quote(c.Name)));
+            result.Add(new CompletionItem
+            {
+                DisplayText = "(INSERT columns only)",
+                InsertText = Environment.NewLine + "(" + Environment.NewLine + "    " + colNamesOnly + Environment.NewLine + ")",
+                Kind = CompletionItemKind.Snippet,
+                Description = columns.Count + " writable columns",
+                Score = 195
+            });
         }
 
         private static string DefaultValue(ColumnMetadata column)
@@ -1149,6 +1288,104 @@ namespace MSSQLTool.Completion
                 case "CAST": return "CAST(expression AS data_type)";
                 case "CONVERT": return "CONVERT(data_type, expression [, style])";
                 default: return "SQL Server built-in function";
+            }
+        }
+
+        private static void AddJoinOnConditions(List<CompletionItem> result, CompletionContext context, MetadataSnapshot metadata)
+        {
+            if (string.IsNullOrEmpty(context.JoinTargetTable)) return;
+
+            var rightObj = FindObject(context, metadata, context.JoinTargetTable);
+            if (rightObj == null)
+            {
+                string lastPart = LastPart(context.JoinTargetTable);
+                rightObj = metadata.Objects.FirstOrDefault(o => (o.Kind == CompletionItemKind.Table || o.Kind == CompletionItemKind.View) && string.Equals(o.Name, lastPart, StringComparison.OrdinalIgnoreCase));
+            }
+            if (rightObj == null) return;
+
+            string rightAlias = !string.IsNullOrEmpty(context.JoinTargetAlias) ? context.JoinTargetAlias : LastPart(rightObj.Name);
+            string rightQualifier = Quote(rightAlias);
+
+            var leftSources = context.Aliases.Where(p =>
+                !string.Equals(p.Key, rightAlias, StringComparison.OrdinalIgnoreCase) &&
+                !ObjectMatches(p.Value, rightObj.QualifiedName) &&
+                !string.Equals(LastPart(p.Value), rightObj.Name, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (leftSources.Count == 0)
+            {
+                leftSources = context.Aliases.Where(p => !string.Equals(p.Key, rightAlias, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+            if (leftSources.Count == 0) return;
+
+            MetadataObjectIndex index = metadata.GetIndex();
+            List<ForeignKeyMetadata> foreignKeyCandidates = index.GetForeignKeysBySimpleName(LastPart(CleanQualified(rightObj.QualifiedName)));
+            var seenConditions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var leftSource in leftSources)
+            {
+                string leftAlias = leftSource.Key;
+                string leftTableName = leftSource.Value;
+                DatabaseObjectMetadata leftObj = FindObject(context, metadata, leftTableName);
+                if (leftObj == null)
+                {
+                    string lastPart = LastPart(leftTableName);
+                    leftObj = metadata.Objects.FirstOrDefault(o => (o.Kind == CompletionItemKind.Table || o.Kind == CompletionItemKind.View) && string.Equals(o.Name, lastPart, StringComparison.OrdinalIgnoreCase));
+                }
+                if (leftObj == null) continue;
+
+                string leftQualifier = Quote(leftAlias);
+
+                // 1. Foreign keys
+                if (foreignKeyCandidates != null)
+                {
+                    var relationships = foreignKeyCandidates.Where(f =>
+                        (ObjectMatches(f.ParentObject, rightObj.QualifiedName) && ObjectMatches(f.ReferencedObject, leftObj.QualifiedName)) ||
+                        (ObjectMatches(f.ReferencedObject, rightObj.QualifiedName) && ObjectMatches(f.ParentObject, leftObj.QualifiedName))).ToList();
+
+                    foreach (var fk in relationships)
+                    {
+                        bool rightIsParent = ObjectMatches(fk.ParentObject, rightObj.QualifiedName);
+                        var conditions = fk.ParentColumns.Select((c, i) =>
+                        {
+                            string rCol = rightIsParent ? c : fk.ReferencedColumns[i];
+                            string lCol = rightIsParent ? fk.ReferencedColumns[i] : c;
+                            return rightQualifier + "." + Quote(rCol) + " = " + leftQualifier + "." + Quote(lCol);
+                        });
+                        string condition = string.Join(" AND ", conditions);
+                        if (seenConditions.Add(condition))
+                        {
+                            result.Add(new CompletionItem
+                            {
+                                DisplayText = condition,
+                                InsertText = condition,
+                                Kind = CompletionItemKind.Join,
+                                Description = "foreign-key condition (" + fk.ConstraintName + ")",
+                                DetailTextProvider = () => "Foreign key: " + fk.ConstraintName + Environment.NewLine + "Relates " + rightObj.Name + " to " + leftObj.Name,
+                                Score = 200
+                            });
+                        }
+                    }
+                }
+
+                // 2. Inferred matching columns
+                List<JoinColumnMatch> inferred = InferJoinColumns(leftObj, rightObj, CompletionSettings());
+                if (inferred.Count > 0)
+                {
+                    string condition = string.Join(" AND ", inferred.Select(p =>
+                        rightQualifier + "." + Quote(p.TargetColumn) + " = " + leftQualifier + "." + Quote(p.SourceColumn)));
+                    if (seenConditions.Add(condition))
+                    {
+                        result.Add(new CompletionItem
+                        {
+                            DisplayText = condition,
+                            InsertText = condition,
+                            Kind = CompletionItemKind.Join,
+                            Description = inferred.Any(p => p.IsCustom) ? "custom-rule condition" : "same-name condition",
+                            DetailTextProvider = () => "Inferred column match between " + rightObj.Name + " and " + leftObj.Name,
+                            Score = inferred.Any(p => p.IsCustom) ? 195 : 190
+                        });
+                    }
+                }
             }
         }
 
@@ -1273,7 +1510,11 @@ namespace MSSQLTool.Completion
         {
             CompletionItem item = ObjectItem(o, score, false);
             if (CompletionSettings().autoAddAliases && (o.Kind == CompletionItemKind.Table || o.Kind == CompletionItemKind.View || o.Kind == CompletionItemKind.Synonym))
-                item.InsertText += " AS " + Quote(MakeAlias(o, context.Aliases.Keys));
+            {
+                string alias = MakeAlias(o, context.Aliases.Keys);
+                string aliasInsert = Regex.IsMatch(alias, @"^[a-zA-Z_][a-zA-Z0-9_]*$") ? alias : Quote(alias);
+                item.InsertText += " AS " + aliasInsert;
+            }
             return item;
         }
 
@@ -1511,10 +1752,56 @@ namespace MSSQLTool.Completion
                     return UniqueAlias(Clean(pair[1]), existing);
             }
             foreach (string prefix in (settings.aliasPrefixToIgnore ?? string.Empty).Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
-                if (name.StartsWith(prefix.Trim(), StringComparison.OrdinalIgnoreCase)) { name = name.Substring(prefix.Trim().Length); break; }
-            string seed = new string((name ?? "t").Where(char.IsUpper).ToArray()).ToLowerInvariant();
-            if (string.IsNullOrEmpty(seed)) seed = (name ?? "t").Substring(0, 1).ToLowerInvariant();
+            {
+                string p = prefix.Trim();
+                if (!string.IsNullOrEmpty(p) && name.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+                {
+                    name = name.Substring(p.Length);
+                    break;
+                }
+            }
+            string seed = ExtractSmartAliasSeed(name);
             return UniqueAlias(seed, existing);
+        }
+
+        private static string ExtractSmartAliasSeed(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "t";
+            name = name.Trim('[', ']', ' ', '"');
+
+            // 1. If name contains underscores (e.g. EMR_CPOE_BLSCWJ or user_order_item)
+            if (name.Contains("_"))
+            {
+                var parts = name.Split(new[] { '_' }, StringSplitOptions.RemoveEmptyEntries);
+                var letters = new StringBuilder();
+                foreach (var part in parts)
+                {
+                    if (part.Length > 0 && char.IsLetterOrDigit(part[0]))
+                        letters.Append(char.ToLowerInvariant(part[0]));
+                }
+                if (letters.Length > 0) return letters.ToString();
+            }
+
+            // 2. If name is camelCase / PascalCase with mixed case (e.g. OrderDetails or orderDetails)
+            bool hasUpper = name.Any(char.IsUpper);
+            bool hasLower = name.Any(char.IsLower);
+            if (hasUpper && hasLower)
+            {
+                var letters = new StringBuilder();
+                for (int i = 0; i < name.Length; i++)
+                {
+                    if (i == 0 || char.IsUpper(name[i]))
+                    {
+                        letters.Append(char.ToLowerInvariant(name[i]));
+                    }
+                }
+                if (letters.Length > 1) return letters.ToString();
+            }
+
+            // 3. Single word / all lowercase / all uppercase (e.g. Orders, orders, user)
+            string cleanLetters = new string(name.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+            if (cleanLetters.Length == 0) return "t";
+            return cleanLetters.Substring(0, 1);
         }
 
         private static string UniqueAlias(string seed, IEnumerable<string> existing)

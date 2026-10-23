@@ -427,7 +427,7 @@ ORDER BY sd.[name];
             public bool useSquareBrackets = true;
             public bool showObjectDetails = true;
             public bool enableColumnPicker = true;
-            public bool autoAddAliases = false;
+            public bool autoAddAliases = true;
             public bool commitOnEnter = true;
             public string aliasPrefixToIgnore = "tbl_,vw_";
             public string customAliases = string.Empty;

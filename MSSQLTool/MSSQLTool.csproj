@@ -131,6 +131,11 @@
     <Compile Include="PivotGrid\PivotGridWindowControl.xaml.cs">
       <DependentUpon>PivotGridWindowControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="GridQuickFilter\GridQuickFilterCommand.cs" />
+    <Compile Include="GridQuickFilter\GridQuickFilterWindow.cs" />
+    <Compile Include="GridQuickFilter\GridQuickFilterWindowControl.xaml.cs">
+      <DependentUpon>GridQuickFilterWindowControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="GridToEmail\ToolWindowGridToEmail.cs" />
     <Compile Include="GridToEmail\ToolWindowGridToEmailCommand.cs" />
     <Compile Include="GridToEmail\ToolWindowGridToEmailControl.xaml.cs">
@@ -792,6 +797,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="PivotGrid\PivotGridWindowControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="GridQuickFilter\GridQuickFilterWindowControl.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

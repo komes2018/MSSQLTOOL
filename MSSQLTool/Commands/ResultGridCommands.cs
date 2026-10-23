@@ -123,6 +123,12 @@ namespace MSSQLTool
             btnControlCCNA.Caption = LocalizationManager.T("Copy All Column Names");
             btnControlCCNA.Click += OnClick_CopyAllColumnNames ;
 
+            var btnQuickFilter = (CommandBarButton)GridCommandBar.Controls.Add(MsoControlType.msoControlButton, Type.Missing, Type.Missing, 1, true);
+            btnQuickFilter.Visible = true;
+            btnQuickFilter.Caption = LocalizationManager.T("🔍 Quick Filter / Search Grid...");
+            btnQuickFilter.BeginGroup = true;
+            btnQuickFilter.Click += OnClick_QuickFilterGrid;
+
         }
 
         private static void OnClick_CopyAllAsInsert(CommandBarButton Ctrl, ref bool CancelDefault) => CopyValues(CopyScope.All, CopyFormat.Insert);
@@ -150,6 +156,12 @@ namespace MSSQLTool
             ThreadHelper.ThrowIfNotOnUIThread();
 
             CopyColumnNames(all: true);
+        }
+
+        private static void OnClick_QuickFilterGrid(CommandBarButton Ctrl, ref bool CancelDefault)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            GridQuickFilter.GridQuickFilterCommand.OpenQuickFilterForGrid();
         }
 
         private static void CopyColumnNames(bool all)
