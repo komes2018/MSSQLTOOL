@@ -768,6 +768,13 @@ namespace MSSQLTool
                 {
                     TryApplyConnectionColorForWindow(GotFocus);
                     ScheduleActiveWindowConnectionColorRefresh();
+
+                    // SQL Prompt-style: Trigger lightweight schema revalidation on focus (throttled)
+                    var connectionInfo = ScriptFactoryAccess.GetCurrentConnectionInfo();
+                    if (connectionInfo != null)
+                    {
+                        Completion.SqlMetadataCache.CheckAndRevalidateOnFocus(connectionInfo);
+                    }
                 }
             }
             catch (Exception ex)

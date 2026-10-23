@@ -576,6 +576,7 @@
     <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="SelectCurrentStatementCommand" editor="guidVSStd97" key1="VK_F5" mod1="Shift" />
     <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="ToggleBlockCommentCommand" editor="guidVSStd97" key1="B" mod1="Control Shift Alt" />
     <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="QueryTemplatePickerCommand" editor="guidVSStd97" key1="T" mod1="Control Alt" />
+    <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="RefreshCompletionMetadataButton" editor="guidVSStd97" key1="D" mod1="Control Shift" />
   </KeyBindings>
 
   <Symbols>

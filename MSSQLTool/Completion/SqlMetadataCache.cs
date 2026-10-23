@@ -144,6 +144,33 @@ namespace MSSQLTool.Completion
             return diskEntry;
         }
 
+        private static readonly ConcurrentDictionary<string, DateTime> LastHeartbeatUtc
+            = new ConcurrentDictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+
+        public static void CheckAndRevalidateOnFocus(ScriptFactoryAccess.ConnectionInfo info)
+        {
+            if (info == null || string.IsNullOrWhiteSpace(info.FullConnectionString)) return;
+            string key = GetKey(info.FullConnectionString);
+
+            // Throttle: check each database at most once every 10 seconds
+            if (LastHeartbeatUtc.TryGetValue(key, out DateTime last) && (DateTime.UtcNow - last).TotalSeconds < 10)
+            {
+                return;
+            }
+            LastHeartbeatUtc[key] = DateTime.UtcNow;
+
+            if (!Cache.TryGetValue(key, out Entry currentEntry) || !currentEntry.Work.IsValueCreated)
+                return;
+
+            Task<MetadataSnapshot> task = currentEntry.Task;
+            if (!task.IsCompleted || task.IsFaulted || task.IsCanceled) return;
+
+            MetadataSnapshot snapshot = task.Result;
+            if (snapshot == null || snapshot.Objects == null || snapshot.Objects.Count == 0) return;
+
+            StartBackgroundRevalidation(info, info.Database, snapshot, key);
+        }
+
         private static void StartBackgroundRevalidation(ScriptFactoryAccess.ConnectionInfo info, string database, MetadataSnapshot diskSnapshot, string key)
         {
             Task.Run(() =>
@@ -161,16 +188,29 @@ namespace MSSQLTool.Completion
                         DateTime? latestModify = SqlMetadataDiskCache.QueryMaxModifyDate(connection);
                         if (latestModify.HasValue && diskSnapshot.SchemaLastModifiedUtc.HasValue && latestModify.Value <= diskSnapshot.SchemaLastModifiedUtc.Value)
                         {
-                            // Schema un-changed: refresh local timestamp and keep using disk snapshot
+                            // Schema un-changed: keep using current snapshot
                             if (Cache.TryGetValue(key, out Entry currentEntry))
                             {
                                 currentEntry.CreatedUtc = DateTime.UtcNow;
                             }
                             return;
                         }
+
+                        // Ultra-fast incremental patch: only query changed tables and columns (SQL Prompt style)
+                        if (diskSnapshot.SchemaLastModifiedUtc.HasValue
+                            && TryApplyIncrementalPatch(connection, diskSnapshot, diskSnapshot.SchemaLastModifiedUtc.Value, out int patchedCount))
+                        {
+                            if (Cache.TryGetValue(key, out Entry currentEntry))
+                            {
+                                currentEntry.CreatedUtc = DateTime.UtcNow;
+                            }
+                            SqlMetadataDiskCache.SaveAsync(info.ServerName, targetDb, diskSnapshot);
+                            MSSQLToolPackage._logger?.Info($"SQL Completion: Applied incremental schema patch for {targetDb} ({patchedCount} objects updated).");
+                            return;
+                        }
                     }
 
-                    // Schema changed or unverified: reload silently in background
+                    // Fallback to full reload if incremental patch was not applicable
                     MetadataSnapshot fresh = Load(info, targetDb);
                     if (fresh != null && fresh.Objects != null && fresh.Objects.Count > 0)
                     {
@@ -188,6 +228,160 @@ namespace MSSQLTool.Completion
                     MSSQLToolPackage._logger?.Warn(ex, "Background schema revalidation failed");
                 }
             });
+        }
+
+        /// <summary>
+        /// SQL Prompt-style incremental schema patch: only queries objects modified since the last sync.
+        /// Replaces changed tables and columns in-place without reloading the entire database.
+        /// </summary>
+        private static bool TryApplyIncrementalPatch(SqlConnection connection, MetadataSnapshot snapshot, DateTime lastSyncUtc, out int patchedCount)
+        {
+            patchedCount = 0;
+            if (connection == null || snapshot == null) return false;
+
+            try
+            {
+                if (connection.State != System.Data.ConnectionState.Open)
+                    connection.Open();
+
+                var changedObjects = new List<(int objectId, string schema, string name, string type, bool isMsShipped)>();
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandTimeout = 10;
+                    command.CommandText = @"
+SELECT s.name, o.name, o.type, o.is_ms_shipped, o.object_id
+FROM sys.all_objects o
+JOIN sys.schemas s ON s.schema_id = o.schema_id
+WHERE o.type IN ('U','V','P','PC','X','FN','IF','TF','FS','FT')
+  AND (o.is_ms_shipped = 0 OR s.name = 'sys')
+  AND o.modify_date > @lastSync;";
+                    command.Parameters.Add(new SqlParameter("@lastSync", System.Data.SqlDbType.DateTime) { Value = lastSyncUtc });
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            changedObjects.Add((
+                                reader.GetInt32(4),
+                                reader.GetString(0),
+                                reader.GetString(1),
+                                reader.GetString(2),
+                                !reader.IsDBNull(3) && reader.GetBoolean(3)
+                            ));
+                        }
+                    }
+                }
+
+                if (changedObjects.Count == 0)
+                {
+                    return true;
+                }
+
+                // If too many objects changed at once (e.g. major migration > 100), fall back to full reload
+                if (changedObjects.Count > 100)
+                {
+                    return false;
+                }
+
+                string idList = string.Join(",", changedObjects.Select(o => o.objectId));
+                var columnsByObject = new Dictionary<int, List<ColumnMetadata>>();
+
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandTimeout = 15;
+                    command.CommandText = @"
+SELECT c.object_id, s.name, o.name, c.name, ty.name, c.max_length, c.precision, c.scale, c.is_nullable, c.is_identity, c.is_computed, c.column_id
+FROM sys.all_columns c
+JOIN sys.all_objects o ON o.object_id = c.object_id
+JOIN sys.schemas s ON s.schema_id = o.schema_id
+JOIN sys.types ty ON ty.user_type_id = c.user_type_id
+WHERE o.object_id IN (" + idList + @");";
+
+                    using (var reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            int objId = reader.GetInt32(0);
+                            if (!columnsByObject.TryGetValue(objId, out var colList))
+                            {
+                                colList = new List<ColumnMetadata>();
+                                columnsByObject[objId] = colList;
+                            }
+
+                            colList.Add(new ColumnMetadata
+                            {
+                                Name = reader.GetString(3),
+                                DataType = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+                                MaxLength = reader.IsDBNull(5) ? (short)0 : reader.GetInt16(5),
+                                Precision = reader.IsDBNull(6) ? (byte)0 : reader.GetByte(6),
+                                Scale = reader.IsDBNull(7) ? (byte)0 : reader.GetByte(7),
+                                IsNullable = !reader.IsDBNull(8) && reader.GetBoolean(8),
+                                IsIdentity = !reader.IsDBNull(9) && reader.GetBoolean(9),
+                                IsComputed = !reader.IsDBNull(10) && reader.GetBoolean(10),
+                                Ordinal = reader.IsDBNull(11) ? 0 : reader.GetInt32(11)
+                            });
+                        }
+                    }
+                }
+
+                // In-place patch snapshot objects
+                lock (snapshot.Objects)
+                {
+                    foreach (var changed in changedObjects)
+                    {
+                        var existing = snapshot.Objects.FirstOrDefault(o =>
+                            string.Equals(o.Schema, changed.schema, StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(o.Name, changed.name, StringComparison.OrdinalIgnoreCase));
+
+                        if (existing != null)
+                        {
+                            existing.Kind = ToKind(changed.type);
+                            existing.IsTableValuedFunction = changed.type == "IF" || changed.type == "TF" || changed.type == "FT";
+                            existing.IsSystem = changed.isMsShipped;
+                            lock (existing.Columns)
+                            {
+                                existing.Columns.Clear();
+                                if (columnsByObject.TryGetValue(changed.objectId, out var cols))
+                                {
+                                    existing.Columns.AddRange(cols);
+                                }
+                            }
+                            existing.ResetDetailCache();
+                        }
+                        else
+                        {
+                            var newObj = new DatabaseObjectMetadata
+                            {
+                                Database = connection.Database,
+                                Schema = changed.schema,
+                                Name = changed.name,
+                                Kind = ToKind(changed.type),
+                                IsTableValuedFunction = changed.type == "IF" || changed.type == "TF" || changed.type == "FT",
+                                IsSystem = changed.isMsShipped
+                            };
+                            if (columnsByObject.TryGetValue(changed.objectId, out var cols))
+                            {
+                                newObj.Columns.AddRange(cols);
+                            }
+                            snapshot.Objects.Add(newObj);
+                            if (!snapshot.Schemas.Contains(changed.schema))
+                            {
+                                snapshot.Schemas.Add(changed.schema);
+                            }
+                        }
+                        patchedCount++;
+                    }
+                }
+
+                snapshot.SchemaLastModifiedUtc = SqlMetadataDiskCache.QueryMaxModifyDate(connection);
+                snapshot.LoadedUtc = DateTime.UtcNow;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MSSQLToolPackage._logger?.Warn(ex, "Incremental schema patch failed, will fallback to full reload.");
+                return false;
+            }
         }
 
         private static async void StartBackgroundRefresh(Entry entry)

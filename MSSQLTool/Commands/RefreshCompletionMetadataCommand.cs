@@ -48,6 +48,12 @@ namespace MSSQLTool
             Instance = new RefreshCompletionMetadataCommand(package, commandService);
         }
 
+        public void TriggerRefresh()
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            Execute(this, EventArgs.Empty);
+        }
+
         private void Execute(object sender, EventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();

@@ -203,8 +203,10 @@ jobs:
           name: MSSQL Tool v${{ steps.package.outputs.version }}
           body: |
             ## MSSQL Tool v${{ steps.package.outputs.version }}
+            - 支持 SQL Prompt 级增量热补丁更新（Incremental Schema Patch）：表结构变动时仅查询变更对象，几十毫秒内热替换完成，网络流量与耗时降低 99%
+            - 支持 SQL Prompt 经典全局刷新快捷键 `Ctrl + Shift + D`，随时随地一键手动刷新补全元数据
+            - 支持窗口激活 (Window Activated) 自动微心跳探测：从其他软件切回 SSMS 时自动无感同步外部数据库变更
             - 智能 SQL 补全支持本地磁盘高速持久化缓存，新建查询表名秒级即出，彻底告别网络冷启动等待
-            - 支持极速心跳保鲜机制（Stale-While-Revalidate），后台毫秒级探测数据库结构变更并静默更新
             - 修复新建查询打字时因网络延迟误弹空表假列表并中断后续补全的问题
             - 增强新建查询窗口连接建立时的自动预热感知重试
             - 智能 SQL 自动补全支持 Enter 键直接录入上屏（可在设置中开关）

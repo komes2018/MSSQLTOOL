@@ -75,6 +75,13 @@ namespace MSSQLTool
                 completionController.Request(false);
                 return editResult;
             }
+            // Ctrl+Shift+D: Refresh completion metadata (compatible with SQL Prompt)
+            if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == (ModifierKeys.Control | ModifierKeys.Shift)
+                && Keyboard.IsKeyDown(Key.D))
+            {
+                RefreshCompletionMetadataCommand.Instance?.TriggerRefresh();
+                return VSConstants.S_OK;
+            }
             if (cmdGroup == VSConstants.GUID_VSStandardCommandSet97 && nCmdID == (uint)VSConstants.VSStd97CmdID.ShellNavBackward && TryNavigateBack())
                 return VSConstants.S_OK;
             if (IsGoToDefinitionCommand(cmdGroup, nCmdID))
