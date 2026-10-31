@@ -193,7 +193,7 @@ jobs:
           path: dist/*.vsix
           if-no-files-found: error
           overwrite: true
-          retention-days: 14
+          retention-days: 2
 
       - name: Publish GitHub Release
         if: github.ref == 'refs/heads/main'

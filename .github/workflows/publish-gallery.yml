@@ -134,3 +134,4 @@ jobs:
           name: gallery-response
           path: gallery-response-*.json
           if-no-files-found: ignore
+          retention-days: 2
