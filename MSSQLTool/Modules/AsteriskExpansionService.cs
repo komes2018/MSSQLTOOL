@@ -315,19 +315,33 @@ namespace MSSQLTool
             {
                 foreach (TSqlStatement statement in batch.Statements)
                 {
-                    SelectStatement selectStatement = GetSelectStatement(statement);
-                    TSqlFragment selectFragment = selectStatement != null && selectStatement.FragmentLength > 0 ? (TSqlFragment)selectStatement : selectStatement?.QueryExpression;
-                    if (selectStatement == null || selectFragment == null || !ContainsCursor(fragment, selectFragment, cursorLine, cursorColumn))
-                        continue;
+                    foreach (SelectStatement selectStatement in GetSelectStatements(statement))
+                    {
+                        TSqlFragment selectFragment = selectStatement.FragmentLength > 0 ? (TSqlFragment)selectStatement : selectStatement.QueryExpression;
+                        if (selectFragment == null || !ContainsCursor(fragment, selectFragment, cursorLine, cursorColumn))
+                            continue;
 
-                    if (selectFragment == null || selectFragment.StartOffset < 0 || selectFragment.FragmentLength <= 0 || selectFragment.StartOffset + selectFragment.FragmentLength > fullText.Length)
-                        return false;
+                        if (selectFragment.StartOffset < 0 || selectFragment.FragmentLength <= 0
+                            || selectFragment.StartOffset + selectFragment.FragmentLength > fullText.Length)
+                            return false;
 
-                    return TryBuildSelectInfo(script, fullText, selectStatement, starOffset, out selectInfo);
+                        return TryBuildSelectInfo(script, fullText, selectStatement, starOffset, out selectInfo);
+                    }
                 }
             }
 
             return false;
+        }
+
+        private static IEnumerable<SelectStatement> GetSelectStatements(TSqlStatement statement)
+        {
+            if (statement == null) yield break;
+            SelectStatement select = GetSelectStatement(statement);
+            if (select != null) yield return select;
+
+            foreach (TSqlStatement nested in GetNestedStatements(statement))
+                foreach (SelectStatement nestedSelect in GetSelectStatements(nested))
+                    yield return nestedSelect;
         }
 
         private static SelectStatement GetSelectStatement(TSqlStatement statement)
@@ -341,6 +355,45 @@ namespace MSSQLTool
             return null;
         }
 
+        /// <summary>
+        /// The statements inside a module body or control-flow block.  A SELECT after
+        /// CREATE PROCEDURE ... AS is a normal statement in that list, not a top-level
+        /// select, so tab-expansion has to walk these containers explicitly.
+        /// </summary>
+        private static IEnumerable<TSqlStatement> GetNestedStatements(TSqlStatement statement)
+        {
+            StatementList list = null;
+            if (statement is ProcedureStatementBody procedure) list = procedure.StatementList;
+            else if (statement is FunctionStatementBody function) list = function.StatementList;
+            else if (statement is TriggerStatementBody trigger) list = trigger.StatementList;
+            else if (statement is BeginEndBlockStatement block) list = block.StatementList;
+
+            if (list != null)
+            {
+                foreach (TSqlStatement child in list.Statements) yield return child;
+                yield break;
+            }
+
+            if (statement is TryCatchStatement tryCatch)
+            {
+                if (tryCatch.TryStatements != null)
+                    foreach (TSqlStatement child in tryCatch.TryStatements.Statements) yield return child;
+                if (tryCatch.CatchStatements != null)
+                    foreach (TSqlStatement child in tryCatch.CatchStatements.Statements) yield return child;
+                yield break;
+            }
+
+            if (statement is IfStatement ifStatement)
+            {
+                if (ifStatement.ThenStatement != null) yield return ifStatement.ThenStatement;
+                if (ifStatement.ElseStatement != null) yield return ifStatement.ElseStatement;
+                yield break;
+            }
+
+            if (statement is WhileStatement whileStatement && whileStatement.Statement != null)
+                yield return whileStatement.Statement;
+        }
+
         internal static bool CanAnalyzeAsteriskContext(string fullText, int starOffset)
         {
             var parser = new TSql170Parser(false);
@@ -349,11 +402,28 @@ namespace MSSQLTool
             if (script == null || (errors != null && errors.Count > 0)) return false;
             foreach (TSqlBatch batch in script.Batches)
                 foreach (TSqlStatement statement in batch.Statements)
-                {
-                    SelectStatement select = GetSelectStatement(statement);
-                    if (select != null && TryBuildSelectInfo(script, fullText, select, starOffset, out SelectInfo _)) return true;
-                }
+                    foreach (SelectStatement select in GetSelectStatements(statement))
+                        if (TryBuildSelectInfo(script, fullText, select, starOffset, out SelectInfo _)) return true;
             return false;
+        }
+
+        /// <summary>
+        /// Qualifiers of the FROM sources that the star at this offset expands.  Used by the
+        /// regression tests to prove a star inside APPLY resolves its own query, not the outer one.
+        /// </summary>
+        internal static List<string> GetAsteriskSourceTables(string fullText, int starOffset)
+        {
+            var result = new List<string>();
+            var parser = new TSql170Parser(false);
+            TSqlFragment parsed = parser.Parse(new StringReader(fullText ?? string.Empty), out IList<ParseError> errors);
+            var script = parsed as TSqlScript;
+            if (script == null || (errors != null && errors.Count > 0)) return result;
+            foreach (TSqlBatch batch in script.Batches)
+                foreach (TSqlStatement statement in batch.Statements)
+                    foreach (SelectStatement select in GetSelectStatements(statement))
+                        if (TryBuildSelectInfo(script, fullText, select, starOffset, out SelectInfo info))
+                            return info.Tables.ConvertAll(t => (t.Qualifier ?? string.Empty).TrimEnd('.'));
+            return result;
         }
 
         private static bool TryBuildSelectInfo(TSqlScript script, string fullText, SelectStatement statement, int starOffset, out SelectInfo selectInfo)
@@ -407,43 +477,39 @@ namespace MSSQLTool
             out QuerySpecification query,
             out SelectElement selectedStar)
         {
-            if (TryFindQueryWithStar(statement.QueryExpression, starOffset, out query, out selectedStar))
-                return true;
-
-            if (statement.WithCtesAndXmlNamespaces?.CommonTableExpressions == null)
-                return false;
-
-            foreach (CommonTableExpression cte in statement.WithCtesAndXmlNamespaces.CommonTableExpressions)
-            {
-                if (TryFindQueryWithStar(cte.QueryExpression, starOffset, out query, out selectedStar))
-                    return true;
-            }
-
-            return false;
+            // A star can sit anywhere in the statement: the top-level query, a CTE, a derived
+            // table, an APPLY subquery or a UNION branch.  Walking the tree keeps the deepest
+            // query that contains the offset, so the expansion uses that query's own FROM.
+            var finder = new StarQueryFinder(starOffset);
+            statement.Accept(finder);
+            query = finder.Query;
+            selectedStar = finder.Star;
+            return query != null && selectedStar != null;
         }
 
-        private static bool TryFindQueryWithStar(
-            QueryExpression queryExpression,
-            int starOffset,
-            out QuerySpecification query,
-            out SelectElement selectedStar)
+        private sealed class StarQueryFinder : TSqlFragmentVisitor
         {
-            query = queryExpression as QuerySpecification;
-            selectedStar = null;
+            private readonly int starOffset;
 
-            if (query == null || query.SelectElements == null || query.SelectElements.Count == 0)
-                return false;
-
-            foreach (SelectElement element in query.SelectElements)
+            public StarQueryFinder(int starOffset)
             {
-                if (element is SelectStarExpression && ContainsOffset(element, starOffset))
-                {
-                    selectedStar = element;
-                    return true;
-                }
+                this.starOffset = starOffset;
             }
 
-            return false;
+            /// <summary>Deepest query containing the offset, because children are visited last.</summary>
+            public QuerySpecification Query { get; private set; }
+
+            public SelectElement Star { get; private set; }
+
+            public override void Visit(QuerySpecification node)
+            {
+                if (ContainsOffset(node, starOffset)) Query = node;
+            }
+
+            public override void Visit(SelectStarExpression node)
+            {
+                if (ContainsOffset(node, starOffset)) Star = node;
+            }
         }
 
         private static bool ContainsOffset(TSqlFragment fragment, int offset)

@@ -203,6 +203,12 @@ jobs:
           name: MSSQL Tool v${{ steps.package.outputs.version }}
           body: |
             ## MSSQL Tool v${{ steps.package.outputs.version }}
+            - 新增 T-SQL 静态代码分析与即时波浪线诊断：支持 QuickInfo 悬浮说明、一键 Quick Fix 快速修复、代码分析结果面板及规则配置页
+            - 新增脚本作用域重构命令：支持重命名标识符（`Ctrl+Shift+Alt+R`）与限定对象名（`Ctrl+Shift+Alt+Q`），并接入编辑器右键菜单
+            - 新增 SQL Prompt 风格关联标识符高亮：光标停留自动高亮同作用域表名、别名、列与变量出现位置
+            - 升级基于解析树的补全上下文与 `ParametersFor` 性能优化，支持嵌套查询分析及 Azure SQL 跨库对象脚本生成
+            - 优化补全弹窗防遮挡定位与 Z-order、词内模糊过滤、精确匹配置顶与 MRU 近期使用记忆权重
+            - 增强 Quick Search 多服务器与对象管理器发现；SQL Agent 作业快速查看支持从选中步骤启动
             - 彻底修复未写完的 SELECT 语句因语法错误被误报为「当前查询可能修改或删除数据」的严重拦截 Bug
             - 支持 SQL Prompt 级增量热补丁更新（Incremental Schema Patch）：表结构变动时仅查询变更对象，几十毫秒内热替换完成，网络流量与耗时降低 99%
             - 支持 SQL Prompt 经典全局刷新快捷键 `Ctrl + Shift + D`，随时随地一键手动刷新补全元数据

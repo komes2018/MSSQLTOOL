@@ -112,120 +112,138 @@ namespace MSSQLTool
                         ? connectionInfo.Database
                         : currentServerConnection.Database);
 
-                // Modules (procedures, views, functions) are read live from the
-                // server with one cheap query, so F12 always shows the current
-                // definition even when someone altered the object remotely
-                // after the completion metadata cache loaded. This also skips
-                // the heavier SMO scripting path for the most common target.
-                string moduleScript = QueryModuleDefinition(currentServerConnection, searchDatabase,
-                    parsedObjectName.SchemaName, parsedObjectName.ObjectName);
-                if (moduleScript != null) return moduleScript;
-
-                List<ScriptObjectSelectionItem> matches = QueryObjects(
-                    currentServerConnection,
-                    searchDatabase,
-                    parsedObjectName.ObjectName,
-                    parsedObjectName.SchemaName);
-
-                matches = DeduplicateMatches(matches);
-
-                if (matches.Count == 0)
+                // Azure SQL Database rejects cross-database USE statements and three-part sys queries.
+                // When targeting another database, open a connection scoped via InitialCatalog instead
+                // (preserving AccessToken/Credential via CreateSqlConnection); otherwise reuse the current connection.
+                SqlConnection scopedConnection = null;
+                SqlConnection effectiveConnection = currentServerConnection;
+                if (!string.IsNullOrWhiteSpace(searchDatabase)
+                    && !string.Equals(currentServerConnection.Database, searchDatabase, StringComparison.OrdinalIgnoreCase))
                 {
-                    throw new Exception($"The specified object was not found: '{selectedObjectName}'.");
+                    scopedConnection = connectionInfo.CreateSqlConnection(searchDatabase);
+                    scopedConnection.Open();
+                    effectiveConnection = scopedConnection;
                 }
 
-                if (matches.Count == 1)
+                try
                 {
-                    selectedObject = matches[0];
-                }
-                else
-                {
-                    ScriptObjectSelectionItem picked = null;
-                    ThreadHelper.JoinableTaskFactory.Run(async delegate
+                    // Modules (procedures, views, functions) are read live from the
+                    // server with one cheap query, so F12 always shows the current
+                    // definition even when someone altered the object remotely
+                    // after the completion metadata cache loaded. This also skips
+                    // the heavier SMO scripting path for the most common target.
+                    string moduleScript = QueryModuleDefinition(effectiveConnection,
+                        parsedObjectName.SchemaName, parsedObjectName.ObjectName);
+                    if (moduleScript != null) return moduleScript;
+
+                    List<ScriptObjectSelectionItem> matches = QueryObjects(
+                        effectiveConnection,
+                        parsedObjectName.ObjectName,
+                        parsedObjectName.SchemaName);
+
+                    matches = DeduplicateMatches(matches);
+
+                    if (matches.Count == 0)
                     {
-                        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                        var dialog = new ScriptObjectPickerDialog(matches);
-                        var uiShell = Package.GetGlobalService(typeof(SVsUIShell)) as IVsUIShell;
-                        if (uiShell != null && uiShell.GetDialogOwnerHwnd(out var hwnd) == 0 && hwnd != IntPtr.Zero)
-                            new WindowInteropHelper(dialog).Owner = hwnd;
-                        if (dialog.ShowDialog() == true) picked = dialog.SelectedObject;
-                    });
-                    selectedObject = picked;
-                    if (selectedObject == null)
-                    {
-                        return string.Empty;
+                        throw new Exception($"The specified object was not found: '{selectedObjectName}'.");
                     }
-                }
 
-                // Reuse the already-authenticated connection for SMO instead
-                // of opening a second one; scripting runs on the same server
-                // and database the lookup just used.
-                ServerConnection smoConnection = new ServerConnection(currentServerConnection);
-                Server server = new Server(smoConnection);
-
-                Scripter scripter = new Scripter(server) { Options = new ScriptingOptions() };
-
-                if (selectedObject.TypeDesc == "USER_TABLE")
-                {
-                    scripter.Options.ScriptData = false;
-                    scripter.Options.DriAllKeys = true;
-
-                    scripter.Options.Indexes = true;
-                    scripter.Options.Triggers = true;
-                    scripter.Options.Default = true;
-                    scripter.Options.DriAll = true;
-
-                    scripter.Options.ScriptDataCompression = true;
-                    scripter.Options.NoCollation = true;
-                }
-                else
-                {
-                    scripter.Options.ScriptForCreateOrAlter = true;
-                    scripter.Options.EnforceScriptingOptions = true;
-                }
-                // scripter.Options.ScriptBatchTerminator = true; -> this doesn't work for some reason..
-
-                Database db = server.Databases[selectedObject.DatabaseName];
-                SqlSmoObject dbObject = FindSmoObject(db, selectedObject);
-
-                string fullScriptResult = String.Empty;
-
-                if (dbObject != null)
-                {
-                    System.Collections.Specialized.StringCollection sc = scripter.Script(new Urn[] { dbObject.Urn });
-
-                    StringBuilder sb = new StringBuilder();
-                    foreach (string line in sc)
+                    if (matches.Count == 1)
                     {
-                        sb.AppendLine(line);
-                        sb.AppendLine("GO");
+                        selectedObject = matches[0];
                     }
-                    fullScriptResult = sb.ToString();
-
-                    // additional format to make it pretty
-                    if (selectedObject.TypeDesc == "USER_TABLE")
+                    else
                     {
-                        TSql170Parser sqlParser = new TSql170Parser(false);
-                        IList<ParseError> parseErrors = new List<ParseError>();
-                        TSqlFragment result = sqlParser.Parse(new StringReader(fullScriptResult), out parseErrors);
-
-                        // leave it as is if for some reason we can't format it
-                        if (parseErrors.Count == 0)
+                        ScriptObjectSelectionItem picked = null;
+                        ThreadHelper.JoinableTaskFactory.Run(async delegate
                         {
-                            Sql170ScriptGenerator gen = new Sql170ScriptGenerator();
-                            gen.Options.AlignClauseBodies = false;
-                            gen.Options.IncludeSemicolons = false;
-                            gen.GenerateScript(result, out fullScriptResult);
+                            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                            var dialog = new ScriptObjectPickerDialog(matches);
+                            var uiShell = Package.GetGlobalService(typeof(SVsUIShell)) as IVsUIShell;
+                            if (uiShell != null && uiShell.GetDialogOwnerHwnd(out var hwnd) == 0 && hwnd != IntPtr.Zero)
+                                new WindowInteropHelper(dialog).Owner = hwnd;
+                            if (dialog.ShowDialog() == true) picked = dialog.SelectedObject;
+                        });
+                        selectedObject = picked;
+                        if (selectedObject == null)
+                        {
+                            return string.Empty;
                         }
                     }
 
-                }
-                else
-                {
-                    throw new Exception($"The specified object was not found: '{selectedObjectName}'.");
-                }
+                    // Reuse the already-authenticated connection for SMO instead
+                    // of opening a second one; scripting runs on the same server
+                    // and database the lookup just used.
+                    ServerConnection smoConnection = new ServerConnection(effectiveConnection);
+                    Server server = new Server(smoConnection);
 
-                return fullScriptResult;
+                    Scripter scripter = new Scripter(server) { Options = new ScriptingOptions() };
+
+                    if (selectedObject.TypeDesc == "USER_TABLE")
+                    {
+                        scripter.Options.ScriptData = false;
+                        scripter.Options.DriAllKeys = true;
+
+                        scripter.Options.Indexes = true;
+                        scripter.Options.Triggers = true;
+                        scripter.Options.Default = true;
+                        scripter.Options.DriAll = true;
+
+                        scripter.Options.ScriptDataCompression = true;
+                        scripter.Options.NoCollation = true;
+                    }
+                    else
+                    {
+                        scripter.Options.ScriptForCreateOrAlter = true;
+                        scripter.Options.EnforceScriptingOptions = true;
+                    }
+                    // scripter.Options.ScriptBatchTerminator = true; -> this doesn't work for some reason..
+
+                    Database db = server.Databases[selectedObject.DatabaseName];
+                    SqlSmoObject dbObject = FindSmoObject(db, selectedObject);
+
+                    string fullScriptResult = String.Empty;
+
+                    if (dbObject != null)
+                    {
+                        System.Collections.Specialized.StringCollection sc = scripter.Script(new Urn[] { dbObject.Urn });
+
+                        StringBuilder sb = new StringBuilder();
+                        foreach (string line in sc)
+                        {
+                            sb.AppendLine(line);
+                            sb.AppendLine("GO");
+                        }
+                        fullScriptResult = sb.ToString();
+
+                        // additional format to make it pretty
+                        if (selectedObject.TypeDesc == "USER_TABLE")
+                        {
+                            TSql170Parser sqlParser = new TSql170Parser(false);
+                            IList<ParseError> parseErrors = new List<ParseError>();
+                            TSqlFragment result = sqlParser.Parse(new StringReader(fullScriptResult), out parseErrors);
+
+                            // leave it as is if for some reason we can't format it
+                            if (parseErrors.Count == 0)
+                            {
+                                Sql170ScriptGenerator gen = new Sql170ScriptGenerator();
+                                gen.Options.AlignClauseBodies = false;
+                                gen.Options.IncludeSemicolons = false;
+                                gen.GenerateScript(result, out fullScriptResult);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        throw new Exception($"The specified object was not found: '{selectedObjectName}'.");
+                    }
+
+                    return fullScriptResult;
+                }
+                finally
+                {
+                    scopedConnection?.Dispose();
+                }
             }
         }
 
@@ -233,14 +251,13 @@ namespace MSSQLTool
         // with a single query. Returns null when the name does not resolve to
         // exactly one readable module, letting the caller fall back to the
         // generic object search (tables, synonyms, triggers, constraints, ...).
-        private static string QueryModuleDefinition(SqlConnection connection, string databaseName,
+        private static string QueryModuleDefinition(SqlConnection connection,
             string schemaName, string objectName)
         {
-            string quotedDatabase = DatabaseIdentifier.SqlServerPart(databaseName);
-            string sql = $@"
+            string sql = @"
 SELECT s.name, OBJECT_DEFINITION(o.object_id)
-FROM {quotedDatabase}.sys.objects o
-JOIN {quotedDatabase}.sys.schemas s ON s.schema_id = o.schema_id
+FROM sys.objects o
+JOIN sys.schemas s ON s.schema_id = o.schema_id
 WHERE o.name = @objectName
   AND (@schemaName IS NULL OR s.name = @schemaName)
   AND o.type IN ('V','P','PC','FN','IF','TF','FS','FT');";
@@ -393,12 +410,10 @@ WHERE o.name = @objectName
 
         private static List<ScriptObjectSelectionItem> QueryObjects(
             SqlConnection connection,
-            string databaseName,
             string objectName,
             string schemaName)
         {
-            string quotedDatabase = DatabaseIdentifier.SqlServerPart(databaseName);
-            string commandText = $@"USE {quotedDatabase};
+            string commandText = @"
             SELECT o.type_desc,
                    s.name,
                    o.name,

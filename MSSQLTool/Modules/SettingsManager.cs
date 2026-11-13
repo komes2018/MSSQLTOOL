@@ -251,6 +251,14 @@ ORDER BY sd.[name];
             TabOrEnter
         }
 
+        /// <summary>Which key accepts the highlighted completion row.</summary>
+        public enum CompletionCommitKey
+        {
+            Tab = 0,
+            Enter = 1,
+            TabOrEnter = 2
+        }
+
         public class SnippetSettings
         {
             public bool useSnippets = true;
@@ -404,6 +412,11 @@ ORDER BY sd.[name];
         {
             RegisterValueCache.Clear();
             cachedFormatterOptions = null;
+            lock (completionCacheLock)
+            {
+                completionCache = null;
+                completionCacheUtc = DateTime.MinValue;
+            }
         }
 
         /// <summary>
@@ -416,6 +429,15 @@ ORDER BY sd.[name];
             if (string.IsNullOrEmpty(name)) return;
             if (value == null) RegisterValueCache.TryRemove(name, out string _);
             else RegisterValueCache[name] = value;
+
+            if (string.Equals(name, "SqlCompletionSettings", StringComparison.OrdinalIgnoreCase))
+            {
+                lock (completionCacheLock)
+                {
+                    completionCache = null;
+                    completionCacheUtc = DateTime.MinValue;
+                }
+            }
         }
 
         public class SqlCompletionSettings
@@ -426,6 +448,7 @@ ORDER BY sd.[name];
             public bool trustServerCertificate = true;
             public bool useSquareBrackets = true;
             public bool showObjectDetails = true;
+            public bool preferRecentlyUsed = true;
             public bool enableColumnPicker = true;
             public bool autoAddAliases = true;
             public bool commitOnEnter = true;
@@ -434,8 +457,24 @@ ORDER BY sd.[name];
             /// <summary>Extra completion keywords, separated by ";" or new lines.  Lets a team add its own house style (for example "WITH (NOLOCK)" or internal prefixes) without a rebuild.</summary>
             public string additionalKeywords = string.Empty;
             public string joinColumnRules = string.Empty;
-            public int delayMilliseconds = 120;
+            /// <summary>Servers this extension has connected to, so the quick-search picker can offer them again while they are offline.</summary>
+            public string knownServers = string.Empty;
+            public int delayMilliseconds = 0;
             public int maximumItems = 200;
+            public CompletionCommitKey completionCommitKey = CompletionCommitKey.TabOrEnter;
+
+            /// <summary>Settings layout version; 0 means written before the commit key absorbed the Enter switch.</summary>
+            public int settingsVersion;
+            public const int CurrentSettingsVersion = 2;
+
+            /// <summary>
+            /// Legacy 5.545 switch, read to migrate old profiles and never written again.
+            /// Null means the profile already went through the migration.
+            /// </summary>
+            [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+            public bool? enterCommitsCompletion;
+
+            public bool ShouldSerializeenterCommitsCompletion() => false;
         }
 
         public static string GetUiLanguage()
@@ -1182,21 +1221,143 @@ ORDER BY sd.[name];
             return SaveRegisterValue("CompletionDetailsWidth", Math.Max(220, Math.Min(900, width)).ToString());
         }
 
+        /// <summary>Servers remembered from earlier sessions (see <see cref="RememberCompletionServer"/>).</summary>
+        public static IEnumerable<string> GetKnownCompletionServers()
+        {
+            var settings = GetSqlCompletionSettings();
+            if (settings == null || string.IsNullOrWhiteSpace(settings.knownServers)) yield break;
+
+            foreach (string name in settings.knownServers.Split(new[] { ';', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string trimmed = name.Trim();
+                if (trimmed.Length > 0) yield return trimmed;
+            }
+        }
+
+        /// <summary>Remembers a server so the picker can list it even when it is not connected.</summary>
+        public static void RememberCompletionServer(string serverName)
+        {
+            if (string.IsNullOrWhiteSpace(serverName)) return;
+            try
+            {
+                var settings = GetSqlCompletionSettings() ?? new SqlCompletionSettings();
+                var names = (settings.knownServers ?? string.Empty)
+                    .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(n => n.Trim()).Where(n => n.Length > 0).ToList();
+
+                if (names.Any(n => string.Equals(n, serverName.Trim(), StringComparison.OrdinalIgnoreCase))) return;
+                names.Add(serverName.Trim());
+                // Keep the list bounded; the oldest entries fall out first.
+                if (names.Count > 32) names.RemoveRange(0, names.Count - 32);
+
+                settings.knownServers = string.Join(";", names);
+                SaveSqlCompletionSettings(settings);
+            }
+            catch (Exception ex)
+            {
+                MSSQLToolPackage._logger?.Debug(ex, "Could not remember the completion server.");
+            }
+        }
+
         public static SqlCompletionSettings GetSqlCompletionSettings()
         {
+            lock (completionCacheLock)
+            {
+                if (completionCache != null && (DateTime.UtcNow - completionCacheUtc).TotalMilliseconds < CompletionCacheMilliseconds)
+                    return completionCache;
+            }
+
             try
             {
                 var value = JsonConvert.DeserializeObject<SqlCompletionSettings>(GetRegisterValue("SqlCompletionSettings"));
-                if (value != null) { value.delayMilliseconds = Math.Max(0, Math.Min(1000, value.delayMilliseconds)); value.maximumItems = Math.Max(20, Math.Min(1000, value.maximumItems)); return value; }
+                if (value != null)
+                {
+                    value.delayMilliseconds = Math.Max(0, Math.Min(1000, value.delayMilliseconds));
+                    value.maximumItems = Math.Max(20, Math.Min(1000, value.maximumItems));
+                    MigrateCompletionSettings(value);
+                    lock (completionCacheLock) { completionCache = value; completionCacheUtc = DateTime.UtcNow; }
+                    return value;
+                }
             }
             catch { }
-            return new SqlCompletionSettings();
+
+            var fallback = new SqlCompletionSettings();
+            lock (completionCacheLock) { completionCache = fallback; completionCacheUtc = DateTime.UtcNow; }
+            return fallback;
         }
 
         public static bool SaveSqlCompletionSettings(SqlCompletionSettings settings)
         {
-            return SaveRegisterValue("SqlCompletionSettings", JsonConvert.SerializeObject(settings ?? new SqlCompletionSettings()));
+            settings = settings ?? new SqlCompletionSettings();
+            MigrateCompletionSettings(settings);
+            bool saved = SaveRegisterValue("SqlCompletionSettings", JsonConvert.SerializeObject(settings));
+            lock (completionCacheLock) { completionCache = null; completionCacheUtc = DateTime.MinValue; }
+            return saved;
         }
+
+        /// <summary>
+        /// Migrates older completion profiles (both legacy enterCommitsCompletion and fork commitOnEnter)
+        /// into the unified completionCommitKey setting once per profile.
+        /// </summary>
+        internal static void MigrateCompletionSettings(SqlCompletionSettings settings)
+        {
+            if (settings == null) return;
+
+            if (settings.settingsVersion < SqlCompletionSettings.CurrentSettingsVersion)
+            {
+                if (!settings.commitOnEnter || settings.enterCommitsCompletion == false)
+                    settings.completionCommitKey = CompletionCommitKey.Tab;
+                else if (settings.completionCommitKey == CompletionCommitKey.Tab)
+                    settings.completionCommitKey = CompletionCommitKey.TabOrEnter;
+
+                settings.enterCommitsCompletion = null;
+                settings.settingsVersion = SqlCompletionSettings.CurrentSettingsVersion;
+            }
+
+            settings.commitOnEnter = settings.completionCommitKey != CompletionCommitKey.Tab;
+        }
+
+        // The completion path reads these settings several times per keystroke; deserializing the
+        // registry value every time costs more than the rest of the filter.  A short-lived snapshot
+        // is invalidated explicitly by SaveSqlCompletionSettings (and expires so an external edit
+        // is still picked up).
+        private const int CompletionCacheMilliseconds = 3000;
+        private static readonly object completionCacheLock = new object();
+        private static SqlCompletionSettings completionCache;
+        private static DateTime completionCacheUtc = DateTime.MinValue;
+
+        /// <summary>
+        /// Code analysis settings are stored next to the completion settings so an upgrade keeps
+        /// the user's rule severities.  A missing or unreadable value falls back to the defaults
+        /// (A/B/C rules on, style rules off, Info diagnostics only in the tool window).
+        /// </summary>
+        internal static MSSQLTool.Analysis.AnalysisSettings GetAnalysisSettings()
+        {
+            try
+            {
+                var value = JsonConvert.DeserializeObject<MSSQLTool.Analysis.AnalysisSettings>(GetRegisterValue("AnalysisSettings"));
+                if (value != null)
+                {
+                    value.ruleSeverity = value.ruleSeverity ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    return value;
+                }
+            }
+            catch (Exception ex)
+            {
+                MSSQLToolPackage._logger?.Debug(ex, "Could not read the code analysis settings.");
+            }
+            return new MSSQLTool.Analysis.AnalysisSettings();
+        }
+
+        internal static bool SaveAnalysisSettings(MSSQLTool.Analysis.AnalysisSettings settings)
+        {
+            bool saved = SaveRegisterValue("AnalysisSettings", JsonConvert.SerializeObject(settings ?? new MSSQLTool.Analysis.AnalysisSettings()));
+            if (saved) AnalysisSettingsVersion++;
+            return saved;
+        }
+
+        /// <summary>Bumped on every successful save so open editors know to reload the rules.</summary>
+        internal static int AnalysisSettingsVersion { get; private set; }
 
     }
 }

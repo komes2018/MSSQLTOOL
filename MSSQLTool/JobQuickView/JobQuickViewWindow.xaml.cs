@@ -51,6 +51,8 @@ namespace MSSQLTool.JobQuickView
         internal string JobName => snapshot?.Name ?? requestedJobName;
         internal event EventHandler CaptionChanged;
 
+        private bool CanStartJob => !closed && snapshot != null && !busy && !refreshing && snapshot.IsRunning == false;
+
         private void SetCaption(string value)
         {
             if (Caption == value) return;
@@ -434,7 +436,13 @@ namespace MSSQLTool.JobQuickView
         {
             if (closed) return;
             bool canAct = snapshot != null && !busy && !refreshing;
-            StartButton.IsEnabled = canAct && snapshot.IsRunning == false;
+            StartButton.IsEnabled = CanStartJob;
+            StartStepButton.IsEnabled = CanStartJob && selectedDraft != null && !selectedDraft.IsRemoved &&
+                selectedDraft.Latest.StepUid != Guid.Empty;
+            StartStepButton.ToolTip = selectedDraft == null
+                ? LocalizationManager.T("Select a step to start the job from that point using its saved commands.")
+                : selectedDraft.IsRemoved ? LocalizationManager.T("This step was removed from the job. Refresh and select an existing step.")
+                : LocalizationManager.Format("Start the job at step {0}. Uses the commands saved on the server and follows the job's configured success and failure actions.", selectedDraft.DisplayName);
             StopButton.IsEnabled = canAct && snapshot.IsRunning == true;
             EnabledButton.IsEnabled = canAct;
             EnabledActionText.Text = snapshot?.IsEnabled == false ? "Enable job" : "Disable job";
@@ -466,11 +474,26 @@ namespace MSSQLTool.JobQuickView
 
         private async void Start_Click(object sender, RoutedEventArgs e)
         {
-            if (snapshot == null) return;
+            if (!CanStartJob) return;
             if (drafts.Any(d => d.IsDirty) && !Confirm(
-                "There are unsaved step changes. Start the job using its currently saved commands?",
-                "Start job")) return;
-            await RunActionAsync(() => service.StartAsync(snapshot.JobId, token), "Start requested. SQL Server Agent will update the running status.");
+                LocalizationManager.T("There are unsaved step changes. Start the job using its currently saved commands?"),
+                LocalizationManager.T("Start job"))) return;
+            if (!CanStartJob) return;
+            await RunActionAsync(() => service.StartAsync(snapshot.JobId, token), LocalizationManager.T("Start requested. SQL Server Agent will update the running status."));
+        }
+
+        private async void StartStep_Click(object sender, RoutedEventArgs e)
+        {
+            if (!CanStartJob || selectedDraft == null || selectedDraft.IsRemoved ||
+                selectedDraft.Latest.StepUid == Guid.Empty) return;
+            var step = selectedDraft.Latest;
+            string stepLabel = LocalizationManager.Format("step {0} ('{1}')", step.StepId, step.Name);
+            if (drafts.Any(d => d.IsDirty) && !Confirm(
+                LocalizationManager.Format("There are unsaved step changes. Start the job from {0} using its currently saved commands?", stepLabel),
+                LocalizationManager.T("Start job from selected step"))) return;
+            if (!CanStartJob) return;
+            await RunActionAsync(() => service.StartFromStepAsync(snapshot.JobId, step.StepUid, token),
+                LocalizationManager.Format("Start requested from {0}. SQL Server Agent will update the running status.", stepLabel));
         }
 
         private async void Stop_Click(object sender, RoutedEventArgs e)

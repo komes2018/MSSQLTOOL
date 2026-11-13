@@ -250,6 +250,39 @@
         </Strings>
       </Button>
 
+      <Button guid="guidMSSQLToolPackageCmdSet" id="AnalysisResultsCommand" priority="0x0012" type="Button">
+        <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Script2" />
+        <Strings>
+          <ButtonText>代码分析</ButtonText>
+          <CommandName>MSSQL Tool: 代码分析</CommandName>
+          <CanonicalName>MSSQLTool.CodeAnalysis</CanonicalName>
+          <LocCanonicalName>MSSQLTool.CodeAnalysis</LocCanonicalName>
+          <ToolTipText>列出当前查询的代码分析问题</ToolTipText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidMSSQLToolPackageCmdSet" id="FixAtCaretCommand" priority="0x0013" type="Button">
+        <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Script2" />
+        <Strings>
+          <ButtonText>修复光标处的问题</ButtonText>
+          <CommandName>MSSQL Tool: 修复光标处的问题</CommandName>
+          <CanonicalName>MSSQLTool.FixAtCaret</CanonicalName>
+          <LocCanonicalName>MSSQLTool.FixAtCaret</LocCanonicalName>
+          <ToolTipText>对光标处的问题应用可用的快速修复 (Ctrl+.)</ToolTipText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidMSSQLToolPackageCmdSet" id="FixAtCaretContextMenu" priority="0x0010" type="Button">
+        <Parent guid="guidSQLEditorsCmdSet" id="IDM_SQLWB_SQLSCRIPT_CONTEXT" />
+        <Strings>
+          <ButtonText>修复光标处的问题</ButtonText>
+          <CommandName>MSSQL Tool: 修复光标处的问题</CommandName>
+          <CanonicalName>MSSQLTool.FixAtCaretContextMenu</CanonicalName>
+          <LocCanonicalName>MSSQLTool.FixAtCaretContextMenu</LocCanonicalName>
+          <ToolTipText>对光标处的问题应用可用的快速修复</ToolTipText>
+        </Strings>
+      </Button>
+
       <Button guid="guidMSSQLToolPackageCmdSet" id="SnippetManagerCommand" priority="0x0010" type="Button">
         <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Script2" />
         <Icon guid="guidSnippet" id="bmpSnippet" />
@@ -286,6 +319,49 @@
           <CanonicalName>MSSQLTool.ToggleBlockComment</CanonicalName>
           <LocCanonicalName>MSSQLTool.ToggleBlockComment</LocCanonicalName>
           <ToolTipText>使用 /* */ 包裹所选 SQL，或移除光标处的块注释</ToolTipText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidMSSQLToolPackageCmdSet" id="RenameSymbolCommand" priority="0x0026" type="Button">
+        <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Script" />
+        <Strings>
+          <ButtonText>重命名</ButtonText>
+          <CommandName>MSSQL Tool: 重命名</CommandName>
+          <CanonicalName>MSSQLTool.RenameSymbol</CanonicalName>
+          <LocCanonicalName>MSSQLTool.RenameSymbol</LocCanonicalName>
+          <ToolTipText>重命名光标下的表、列、别名或变量（默认只在当前语句内，Ctrl+Shift+Alt+R）</ToolTipText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidMSSQLToolPackageCmdSet" id="QualifyObjectNamesCommand" priority="0x0027" type="Button">
+        <Parent guid="guidMSSQLToolPackageCmdSet" id="ToolsSubMenuGroup_Script" />
+        <Strings>
+          <ButtonText>为对象名添加架构</ButtonText>
+          <CommandName>MSSQL Tool: 为对象名添加架构</CommandName>
+          <CanonicalName>MSSQLTool.QualifyObjectNames</CanonicalName>
+          <LocCanonicalName>MSSQLTool.QualifyObjectNames</LocCanonicalName>
+          <ToolTipText>给 FROM/JOIN/UPDATE/INTO 后未带架构的表名补上架构前缀 (Ctrl+Shift+Alt+Q)</ToolTipText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidMSSQLToolPackageCmdSet" id="RenameSymbolContextMenu" priority="0x0011" type="Button">
+        <Parent guid="guidSQLEditorsCmdSet" id="IDM_SQLWB_SQLSCRIPT_CONTEXT" />
+        <Strings>
+          <ButtonText>重命名</ButtonText>
+          <CommandName>MSSQL Tool: 重命名</CommandName>
+          <CanonicalName>MSSQLTool.RenameSymbolContextMenu</CanonicalName>
+          <LocCanonicalName>MSSQLTool.RenameSymbolContextMenu</LocCanonicalName>
+          <ToolTipText>重命名光标下的表、列、别名或变量</ToolTipText>
+        </Strings>
+      </Button>
+
+      <Button guid="guidMSSQLToolPackageCmdSet" id="QualifyObjectNamesContextMenu" priority="0x0012" type="Button">
+        <Parent guid="guidSQLEditorsCmdSet" id="IDM_SQLWB_SQLSCRIPT_CONTEXT" />
+        <Strings>
+          <ButtonText>为对象名添加架构</ButtonText>
+          <CommandName>MSSQL Tool: 为对象名添加架构</CommandName>
+          <CanonicalName>MSSQLTool.QualifyObjectNamesContextMenu</CanonicalName>
+          <LocCanonicalName>MSSQLTool.QualifyObjectNamesContextMenu</LocCanonicalName>
         </Strings>
       </Button>
 
@@ -590,12 +666,22 @@
     <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="ToggleBlockCommentCommand" editor="guidVSStd97" key1="B" mod1="Control Shift Alt" />
     <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="QueryTemplatePickerCommand" editor="guidVSStd97" key1="T" mod1="Control Alt" />
     <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="RefreshCompletionMetadataButton" editor="guidVSStd97" key1="D" mod1="Control Shift" />
+    <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="FixAtCaretCommand" editor="guidSqlQueryEditor" key1="OEM_PERIOD" mod1="Control" />
+    <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="RenameSymbolCommand" editor="guidSqlQueryEditor" key1="R" mod1="Control Shift Alt" />
+    <KeyBinding guid="guidMSSQLToolPackageCmdSet" id="QualifyObjectNamesCommand" editor="guidSqlQueryEditor" key1="Q" mod1="Control Shift Alt" />
   </KeyBindings>
 
   <Symbols>
     <!-- SSMS 22 Transact-SQL query editor. Keep F12 editor-scoped so it does
          not conflict with the shell's existing Global::F12 binding. -->
     <GuidSymbol name="guidSqlQueryEditor" value="{B5A506EB-11BE-4782-9A18-21265C2CA0B4}" />
+
+    <!-- SSMS's SQL editors package.  Its right-click menus live in this command set, not in the
+         Visual Studio shell's guidSHLMainMenu: the query editor context menu is menu 80
+         (SQLWorkbenchCommands.IDM_SQLWB_SQLSCRIPT_CONTEXT) of this GUID. -->
+    <GuidSymbol name="guidSQLEditorsCmdSet" value="{4058755A-8FBE-41C7-BC99-3DBF5C74BA62}">
+      <IDSymbol name="IDM_SQLWB_SQLSCRIPT_CONTEXT" value="0x0050" />
+    </GuidSymbol>
 
     <!-- This is the package guid. -->
     <GuidSymbol name="guidMSSQLToolPackage" value="{82ff597d-c4bc-469f-b990-637219074984}" />
@@ -664,6 +750,13 @@
       <IDSymbol name="SortSelectedTextAscending" value="4167" />
       <IDSymbol name="SortSelectedTextDescending" value="4168" />
       <IDSymbol name="GridQuickFilterCommand" value="4169" />
+      <IDSymbol name="AnalysisResultsCommand" value="4170" />
+      <IDSymbol name="FixAtCaretCommand" value="4171" />
+      <IDSymbol name="FixAtCaretContextMenu" value="4172" />
+      <IDSymbol name="RenameSymbolCommand" value="4173" />
+      <IDSymbol name="RenameSymbolContextMenu" value="4174" />
+      <IDSymbol name="QualifyObjectNamesCommand" value="4175" />
+      <IDSymbol name="QualifyObjectNamesContextMenu" value="4176" />
 
     </GuidSymbol>
 

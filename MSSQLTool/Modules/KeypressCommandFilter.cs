@@ -1,4 +1,4 @@
-using Microsoft.VisualStudio;
+﻿using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.TextManager.Interop;
 using System;
@@ -19,6 +19,9 @@ namespace MSSQLTool
         private static readonly ConcurrentStack<NavigationLocation> NavigationHistory = new ConcurrentStack<NavigationLocation>();
         private IOleCommandTarget nextCommandTarget;
         private IVsTextView textView;
+        private static int liveCount;
+        private bool disposed;
+
         private readonly MSSQLToolPackage package;
         private readonly CompletionController completionController;
         private CancellationTokenSource navigationCancellation;
@@ -27,6 +30,7 @@ namespace MSSQLTool
         {
             this.package = package;
             this.textView = textView;
+            Interlocked.Increment(ref liveCount);
             completionController = new CompletionController(textView);
             completionController.BeforePopupShown += DismissNativeCompletion;
         }
@@ -99,14 +103,10 @@ namespace MSSQLTool
                 if (completionController.HandleNavigation(nCmdID))
                     return VSConstants.S_OK;
 
-                // Tab is a completion commit key; Enter is also supported when completion popup is visible and commitOnEnter is true.
-                if (nCmdID == (uint)VSConstants.VSStd2KCmdID.TAB
-                    && completionController.TryCommit())
-                    return VSConstants.S_OK;
-
-                if (nCmdID == (uint)VSConstants.VSStd2KCmdID.RETURN
-                    && completionController.IsVisible
-                    && SettingsManager.GetSqlCompletionSettings().commitOnEnter
+                // Tab is the default completion commit key; Enter can be enabled in the SQL
+                // completion settings.  When the popup is not visible TryCommit returns false, so
+                // Enter still inserts a newline and Tab still indents.
+                if (ShouldCommitCompletion(SettingsManager.GetSqlCompletionSettings().completionCommitKey, nCmdID)
                     && completionController.TryCommit())
                     return VSConstants.S_OK;
 
@@ -175,6 +175,19 @@ namespace MSSQLTool
                 || nCmdID == (uint)VSConstants.VSStd2KCmdID.SHOWMEMBERLIST;
         }
 
+        internal static bool ShouldCommitCompletion(SettingsManager.CompletionCommitKey key, uint nCmdID)
+        {
+            return ShouldCommitCompletion(key, nCmdID == (uint)VSConstants.VSStd2KCmdID.TAB,
+                nCmdID == (uint)VSConstants.VSStd2KCmdID.RETURN);
+        }
+
+        internal static bool ShouldCommitCompletion(SettingsManager.CompletionCommitKey key, bool tabKey, bool enterKey)
+        {
+            return key == SettingsManager.CompletionCommitKey.Tab ? tabKey
+                : key == SettingsManager.CompletionCommitKey.Enter ? enterKey
+                : tabKey || enterKey;
+        }
+
         private bool ShouldProcessSnippetKey(uint nCmdID)
         {
             var snippetSettings = SettingsManager.GetSnippetSettings();
@@ -189,8 +202,14 @@ namespace MSSQLTool
 
         private bool ShouldProcessAsteriskExpansionKey(uint nCmdID)
         {
-            var settings = SettingsManager.GetAsteriskExpansionSettings();
-            return settings.useAsteriskExpansion && KeyMatches(settings.triggerKey, nCmdID);
+            try
+            {
+                var settings = SettingsManager.GetAsteriskExpansionSettings();
+                return settings.useAsteriskExpansion && KeyMatches(settings.triggerKey, nCmdID);
+            }
+            finally
+            {
+            }
         }
 
         private bool KeyMatches(SettingsManager.SnippetReplaceKey key, uint nCmdID)
@@ -710,6 +729,9 @@ namespace MSSQLTool
 
         public void Dispose()
         {
+            if (disposed) return;
+            disposed = true;
+            Interlocked.Decrement(ref liveCount);
             if (f12KeyboardHookRegistered)
             {
                 F12KeyboardHook.Unregister(this);

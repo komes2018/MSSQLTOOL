@@ -125,7 +125,7 @@ namespace MSSQLTool
         /// Every server connected in Object Explorer, so the user can pick the search target instead
         /// of having to select the right node in the tree first.
         /// </summary>
-        public static List<ObjectExplorerServer> GetObjectExplorerServers()
+        public static List<ObjectExplorerServer> GetObjectExplorerServers(string preferredServer = null)
         {
             var servers = new List<ObjectExplorerServer>();
             try
@@ -158,7 +158,21 @@ namespace MSSQLTool
                     }
                 }
 
-                servers.Sort((left, right) => string.Compare(left.ServerName, right.ServerName, StringComparison.OrdinalIgnoreCase));
+                // Some SSMS 22 builds do not expose IObjectExplorerNavigationService at all (the
+                // navigation service is unavailable in the log).  Walk the Object Explorer tree
+                // hierarchy instead: the selected node's root contains one top-level node per
+                // connected server.
+                if (servers.Count < 2)
+                    AddServersFromObjectExplorerHierarchy(servers, preferredServer);
+
+                if (servers.Count < 2)
+                    AddServersFromObjectExplorerTree(servers, preferredServer);
+
+                // Only report servers that are actually present in Object Explorer.  The old
+                // "known servers" history kept disconnected hosts in the picker, which made it
+                // look like three servers were connected when none were.
+                if (servers.Count > 0)
+                    servers.Sort((left, right) => string.Compare(left.ServerName, right.ServerName, StringComparison.OrdinalIgnoreCase));
             }
             catch (Exception ex)
             {
@@ -166,6 +180,108 @@ namespace MSSQLTool
             }
 
             return servers;
+        }
+
+        /// <summary>
+        /// Fallback for SSMS builds where IObjectExplorerNavigationService is not proffered: the
+        /// selected node's hierarchy root has one child per server shown in Object Explorer.
+        /// </summary>
+        private static void AddServersFromObjectExplorerHierarchy(List<ObjectExplorerServer> servers, string preferredServer)
+        {
+            try
+            {
+                var oeService = ServiceCache.ServiceProvider.GetService(typeof(IObjectExplorerService)) as IObjectExplorerService;
+                if (oeService == null)
+                {
+                    return;
+                }
+
+                INodeInformation selected = GetSelectedNode(oeService);
+                if (selected == null && !string.IsNullOrWhiteSpace(preferredServer))
+                {
+                    try { selected = oeService.FindNode($"Server[@Name='{preferredServer}']"); }
+                    catch (Exception) { }
+                }
+                if (selected == null)
+                {
+                    return;
+                }
+
+                HierarchyTreeNode root = selected?.Hierarchy?.Root;
+                if (root == null)
+                {
+                    return;
+                }
+
+                try { root.Expand(); } catch (Exception) { }
+                try { root.EnumerateChildren(); } catch (Exception) { }
+
+                foreach (System.Windows.Forms.TreeNode child in root.Nodes)
+                {
+                    var hierarchy = child as HierarchyTreeNode;
+                    if (hierarchy == null) continue;
+
+                    string serverName = NodeServerNameFromPath(hierarchy.FullPath);
+                    if (string.IsNullOrWhiteSpace(serverName)
+                        && hierarchy.Level == 0
+                        && !string.IsNullOrWhiteSpace(hierarchy.Text)
+                        && !string.Equals(hierarchy.Text, "Databases", StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(hierarchy.Text, LocalizationManager.T("Databases"), StringComparison.OrdinalIgnoreCase))
+                    {
+                        serverName = hierarchy.Text.Trim();
+                    }
+                    if (string.IsNullOrWhiteSpace(serverName)) continue;
+                    if (servers.Exists(s => string.Equals(s.ServerName, serverName, StringComparison.OrdinalIgnoreCase))) continue;
+
+                    servers.Add(new ObjectExplorerServer
+                    {
+                        ServerName = serverName,
+                        DisplayName = string.IsNullOrWhiteSpace(child.Text) ? serverName : child.Text,
+                        IsConnected = true
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                FeatureDiagnostics.Report("Object Explorer", "Could not walk the Object Explorer hierarchy", ex);
+            }
+        }
+
+        private static string NodeServerNameFromPath(string path)
+        {
+            Match match = Regex.Match(path ?? string.Empty, @"Server\[@Name='(.*?)'\]");
+            return match.Success ? match.Groups[1].Value : null;
+        }
+
+        /// <summary>
+        /// Final fallback: read the actual Object Explorer TreeView.  This works even when neither
+        /// the navigation service nor the managed hierarchy exposes the other connections.
+        /// </summary>
+        private static void AddServersFromObjectExplorerTree(List<ObjectExplorerServer> servers, string preferredServer)
+        {
+            try
+            {
+                List<string> names = ObjectExplorerTreeReader.ReadServerNames(preferredServer);
+                if (names.Count > 0)
+                {
+                    foreach (string name in names)
+                    {
+                        if (string.IsNullOrWhiteSpace(name)) continue;
+                        if (servers.Exists(s => string.Equals(s.ServerName, name, StringComparison.OrdinalIgnoreCase))) continue;
+                        servers.Add(new ObjectExplorerServer
+                        {
+                            ServerName = name,
+                            DisplayName = name,
+                            IsConnected = true
+                        });
+                    }
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                FeatureDiagnostics.Report("Object Explorer", "Could not read the Object Explorer TreeView", ex);
+            }
         }
 
         /// <summary>
@@ -198,7 +314,7 @@ namespace MSSQLTool
         /// <summary>
         /// Connection (including the credentials Object Explorer holds) for a server it has open.
         /// </summary>
-        public static ConnectionInfo GetConnectionInfoFromObjectExplorerServer(string serverName, string database = null)
+        public static ConnectionInfo GetConnectionInfoFromObjectExplorerServer(string serverName, string database = null, bool allowSelection = false)
         {
             if (string.IsNullOrWhiteSpace(serverName)) return null;
 
@@ -223,6 +339,35 @@ namespace MSSQLTool
                     INodeInformation selected = GetSelectedNode(oeService);
                     if (selected != null && string.Equals(NodeServerName(selected), serverName, StringComparison.OrdinalIgnoreCase))
                         node = selected;
+                }
+
+                if (node == null)
+                {
+                    // Fall back to the current Object Explorer selection.  Some servers have a
+                    // display name that FindNode cannot resolve, while the selected node still
+                    // carries a perfectly usable connection.
+                    ConnectionInfo current = GetCurrentConnectionInfoFromObjectExplorer();
+                    if (current != null
+                        && string.Equals(current.ServerName, serverName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return current;
+                    }
+                }
+
+                if (node == null && allowSelection)
+                {
+                    bool selected = ObjectExplorerTreeReader.SelectServer(serverName);
+                    if (!selected)
+                    {
+                        selected = ObjectExplorerTreeReader.SelectServerByConnection(
+                            serverName, () => GetCurrentConnectionInfoFromObjectExplorer()?.ServerName);
+                    }
+
+                    if (selected)
+                    {
+                        INodeInformation selectedNode = GetSelectedNode(oeService);
+                        if (selectedNode != null) node = selectedNode;
+                    }
                 }
 
                 if (node == null) return null;

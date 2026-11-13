@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.IO;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
@@ -34,6 +35,7 @@ using System.Windows.Input;
 using System.Windows.Documents;
 using MSSQLTool.Modules;
 using MSSQLTool.Completion;
+using MSSQLTool.Commands;
 
 namespace MSSQLTool
 {
@@ -79,6 +81,8 @@ namespace MSSQLTool
     [ProvideToolWindow(typeof(DataImportWindow))]
     [ProvideToolWindow(typeof(QuickSearchWindow))]
     [ProvideToolWindow(typeof(SnippetManagerWindow))]
+    [ProvideToolWindow(typeof(MSSQLTool.Rendering.AnalysisResultsWindow))]
+    [ProvideOptionPage(typeof(MSSQLTool.Modules.AnalysisOptionsPage), "MSSQL Tool", "Code Analysis", 0, 0, true)]
     [ProvideToolWindow(typeof(QueryTemplateWindow))]
     public sealed class MSSQLToolPackage : AsyncPackage
     {
@@ -133,6 +137,22 @@ namespace MSSQLTool
         {
             LoggingSetup.Apply(AppPaths.LogsFolder);
             _logger = LogManager.GetCurrentClassLogger();
+        }
+
+        /// <summary>
+        /// Logs the first-chance STG_E_FILEREADYEXISTS exception with its full stack, so a native
+        /// New Query collision can be traced even though SSMS handles the exception itself.
+        /// </summary>
+        private static void OnFirstChanceException(object sender, FirstChanceExceptionEventArgs e)
+        {
+            try
+            {
+                if (e?.Exception != null && e.Exception.HResult == unchecked((int)0x80030050))
+                    _logger?.Error(e.Exception, "First-chance STG_E_FILEREADYEXISTS");
+            }
+            catch (Exception)
+            {
+            }
         }
 
         private static void EnqueueDataForProcessing(QueryHistoryEntry data)
@@ -360,6 +380,7 @@ namespace MSSQLTool
 
             LocalizationManager.Initialize();
             InitializeLogging();
+            AppDomain.CurrentDomain.FirstChanceException += OnFirstChanceException;
 
             try
             {
@@ -385,6 +406,10 @@ namespace MSSQLTool
                 await SelectCurrentStatementCommand.InitializeAsync(this);
                 await ToggleBlockCommentCommand.InitializeAsync(this);
                 await QueryTemplateWindowCommand.InitializeAsync(this);
+                await RenameSymbolCommand.InitializeAsync(this);
+                await QualifyObjectNamesCommand.InitializeAsync(this);
+                await MSSQLTool.Rendering.AnalysisResultsCommand.InitializeAsync(this);
+                await MSSQLTool.Rendering.FixAtCaretCommand.InitializeAsync(this);
                 await SortSelectedTextCommand.InitializeAsync(this);
                 await ExportGridToExcelCommand.InitializeAsync(this);
                 await DataCompare.DataCompareWindowCommand.InitializeAsync(this);
@@ -416,7 +441,6 @@ namespace MSSQLTool
                 EnvDTE80.Events2 events = (EnvDTE80.Events2)application.Events;
                 _windowEvents = events.WindowEvents;
 
-                _windowEvents.WindowCreated += new _dispWindowEvents_WindowCreatedEventHandler(WindowCreated_Event);
                 _windowEvents.WindowActivated += new _dispWindowEvents_WindowActivatedEventHandler(WindowActivated_Event);
                 _windowEvents.WindowClosing += new _dispWindowEvents_WindowClosingEventHandler(WindowClosing_Event);
 
@@ -435,6 +459,24 @@ namespace MSSQLTool
 
                 CommandBar commandBar = m_plugin.AddCommandBar("MSSQL Tool", MsoBarPosition.msoBarTop);
                 m_commandRegistry = new CommandRegistry(m_plugin, commandBar, new Guid(PackageGuidString), new Guid(PackageGuidGroup));
+
+                EditorContextMenuInstaller.Install(application, profferCommands3);
+                try
+                {
+                    var shellTimer = new System.Windows.Threading.DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromSeconds(1)
+                    };
+                    shellTimer.Tick += (_, __) =>
+                    {
+                        shellTimer.Stop();
+                        try { EditorContextMenuInstaller.Install(application, profferCommands3); } catch (Exception) { }
+                    };
+                    shellTimer.Start();
+                }
+                catch (Exception)
+                {
+                }
 
                 //---------------------------------------------------------------------------
                 // Legacy snippet folder load: the dictionary has no other reader in
@@ -493,6 +535,7 @@ namespace MSSQLTool
         {
             if (disposing)
             {
+                AppDomain.CurrentDomain.FirstChanceException -= OnFirstChanceException;
                 foreach (KeypressCommandFilter filter in _commandFilters.ToArray())
                     filter.Dispose();
                 _commandFilters.Clear();
@@ -501,7 +544,6 @@ namespace MSSQLTool
                 _connectionColorRetryTimer?.Stop();
                 if (_windowEvents != null)
                 {
-                    _windowEvents.WindowCreated -= WindowCreated_Event;
                     _windowEvents.WindowActivated -= WindowActivated_Event;
                     _windowEvents.WindowClosing -= WindowClosing_Event;
                     _windowEvents = null;
@@ -717,8 +759,41 @@ namespace MSSQLTool
 
         private void WindowActivated_Event(EnvDTE.Window GotFocus, EnvDTE.Window LostFocus)
         {
+            if (!ThreadHelper.CheckAccess()) return;
 
+            if (!IsDocumentWindow(GotFocus))
+            {
+                foreach (KeypressCommandFilter existing in _commandFilters) existing.DismissCompletion();
+                return;
+            }
+
+            // Activation is raised from inside SSMS's command execution.  Reading Window.Object /
+            // DocData synchronously here makes the shell initialise the document again while it is
+            // still creating the new query, which produced
+            // "already exists (STG_E_FILEREADYEXISTS)" after an auto-recovery replay.  Wait for the
+            // dispatcher to go idle first, then attach the editor filter to the finished document.
+            try
+            {
+                var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                if (dispatcher == null)
+                {
+                    HandleWindowActivated(GotFocus);
+                    return;
+                }
+
+                dispatcher.BeginInvoke(new Action(() => HandleWindowActivated(GotFocus)),
+                    System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Could not schedule the window-activation work.");
+            }
+        }
+
+        private void HandleWindowActivated(EnvDTE.Window window)
+        {
             ThreadHelper.ThrowIfNotOnUIThread();
+            if (!IsDocumentWindow(window)) return;
 
             try
             {
@@ -731,59 +806,45 @@ namespace MSSQLTool
 
             // The editor command filter owns completion as well as optional snippets,
             // so it must be attached independently of the snippet setting.
-            if (GotFocus != null)
+            try
             {
-                try
+                // Do not touch window.Object here: doing so while SSMS is still creating the
+                // document makes it create the temporary query file twice (STG_E_FILEREADYEXISTS
+                // after an AutoRecover replay).  The active text view is enough for the filter.
+                var textManager = Package.GetGlobalService(typeof(SVsTextManager)) as IVsTextManager;
+                IVsTextView textView;
+                if (textManager != null && textManager.GetActiveView(1, null, out textView) == VSConstants.S_OK)
                 {
-                    // snippet processor
-                    var DocData = GridAccess.GetProperty(GotFocus.Object, "DocData");
-                    if (DocData != null)
+                    foreach (KeypressCommandFilter existing in _commandFilters)
                     {
-                        var txtMgr = (IVsTextManager)GridAccess.GetProperty(DocData, "TextManager");
-
-                        IVsTextView textView;
-                        if (txtMgr != null && txtMgr.GetActiveView(0, null, out textView) == VSConstants.S_OK)
-                        {
-                            foreach (KeypressCommandFilter existing in _commandFilters)
-                            {
-                                if (!existing.IsFor(textView)) existing.DismissCompletion();
-                            }
-                            EnsureCommandFilter(textView);
-                            AttachStringSelection(textView);
-                        }
+                        if (!existing.IsFor(textView)) existing.DismissCompletion();
                     }
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(ex, "An exception occurred");
+                    EnsureCommandFilter(textView);
+                    AttachStringSelection(textView);
                 }
             }
-            else
+            catch (Exception ex)
             {
-                foreach (KeypressCommandFilter existing in _commandFilters) existing.DismissCompletion();
+                _logger.Error(ex, "An exception occurred");
             }
 
             // Apply connection-based status-bar coloring through SSMS's native API.
             try
             {
-                if (GotFocus != null)
-                {
-                    TryApplyConnectionColorForWindow(GotFocus);
-                    ScheduleActiveWindowConnectionColorRefresh();
+                TryApplyConnectionColorForWindow(window);
+                ScheduleActiveWindowConnectionColorRefresh();
 
-                    // SQL Prompt-style: Trigger lightweight schema revalidation on focus (throttled)
-                    var connectionInfo = ScriptFactoryAccess.GetCurrentConnectionInfo();
-                    if (connectionInfo != null)
-                    {
-                        Completion.SqlMetadataCache.CheckAndRevalidateOnFocus(connectionInfo);
-                    }
+                // SQL Prompt-style: Trigger lightweight schema revalidation on focus (throttled)
+                var connectionInfo = ScriptFactoryAccess.GetCurrentConnectionInfo();
+                if (connectionInfo != null)
+                {
+                    Completion.SqlMetadataCache.CheckAndRevalidateOnFocus(connectionInfo);
                 }
             }
             catch (Exception ex)
             {
                 _logger.Error(ex, "An exception occurred applying connection color");
             }
-
         }
 
         private static void AttachStringSelection(IVsTextView nativeView)
@@ -1047,14 +1108,15 @@ namespace MSSQLTool
 
         private void WindowClosing_Event(EnvDTE.Window Window)
         {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            // Re-color remaining tabs after a tab closes
+            if (!ThreadHelper.CheckAccess()) return;
+            if (!IsDocumentWindow(Window)) return;
+            // Re-color remaining tabs after a tab closes.  Do not touch Window.Object here either;
+            // the active text view is enough to find the filter that belonged to the closing tab.
             try
             {
                 QuerySafety.FatalActionGuard.ForgetDocument(Window?.Document);
-                var docData = Window == null ? null : GridAccess.GetProperty(Window.Object, "DocData");
-                var textManager = docData == null ? null : GridAccess.GetProperty(docData, "TextManager") as IVsTextManager;
-                if (textManager != null && textManager.GetActiveView(0, null, out IVsTextView closingView) == VSConstants.S_OK)
+                var textManager = Package.GetGlobalService(typeof(SVsTextManager)) as IVsTextManager;
+                if (textManager != null && textManager.GetActiveView(1, null, out IVsTextView closingView) == VSConstants.S_OK)
                 {
                     for (int i = _commandFilters.Count - 1; i >= 0; i--)
                     {
@@ -1071,24 +1133,12 @@ namespace MSSQLTool
             }
         }
 
-        private void WindowCreated_Event(EnvDTE.Window Window)
+        private static bool IsDocumentWindow(EnvDTE.Window window)
         {
+            if (window == null) return false;
 
-            ThreadHelper.ThrowIfNotOnUIThread();
-
-            // subscribe to the execution completed event
-            try
-            {
-                var sqlResultsControl = GridAccess.GetNonPublicField(Window.Object, "m_sqlResultsControl");
-                AttachStatisticsExecutionCompletedHandler(sqlResultsControl);
-                TryApplyConnectionColorForWindow(Window);
-                ScheduleActiveWindowConnectionColorRefresh();
-
-            }
-            catch (Exception ex) 
-            {
-                _logger.Error(ex, "An exception occurred");
-            }
+            try { return string.Equals(window.Kind, "Document", StringComparison.Ordinal); }
+            catch (Exception) { return false; }
         }
 
         private static void AttachStatisticsExecutionCompletedHandler(object sqlResultsControl)
@@ -1119,6 +1169,7 @@ namespace MSSQLTool
 
             try
             {
+                if (!IsDocumentWindow(ServiceCache.ExtensibilityModel?.ActiveWindow)) return;
                 var sqlResultsControl = GridAccess.GetSQLResultsControl();
                 AttachStatisticsExecutionCompletedHandler(sqlResultsControl);
             }
@@ -1205,8 +1256,11 @@ namespace MSSQLTool
                 foreach (var gridContainer in gridContainers)
                 {
                     var grid = GridAccess.GetNonPublicField(gridContainer, "m_grid") as GridControl;
+                    if (grid == null) continue;
                     var gridStorage = grid.GridStorage;
+                    if (gridStorage == null) continue;
                     var schemaTable = GridAccess.GetNonPublicField(gridStorage, "m_schemaTable") as DataTable;
+                    if (schemaTable == null) continue;
 
                     var gridColumns = GridAccess.GetNonPublicField(grid, "m_Columns") as GridColumnCollection;
                     if (gridColumns != null)

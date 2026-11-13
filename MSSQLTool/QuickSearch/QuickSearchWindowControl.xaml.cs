@@ -200,14 +200,16 @@ namespace MSSQLTool
         {
             try
             {
-                List<ScriptFactoryAccess.ObjectExplorerServer> servers = ScriptFactoryAccess.GetObjectExplorerServers();
-
                 string activeServer = selectedServer;
                 if (string.IsNullOrWhiteSpace(activeServer))
                     activeServer = ScriptFactoryAccess.GetCurrentConnectionInfoFromObjectExplorer()?.ServerName;
 
-                if (!string.IsNullOrWhiteSpace(activeServer)
-                    && !servers.Exists(s => string.Equals(s.ServerName, activeServer, StringComparison.OrdinalIgnoreCase)))
+                List<ScriptFactoryAccess.ObjectExplorerServer> servers =
+                    ScriptFactoryAccess.GetObjectExplorerServers(activeServer);
+
+                bool activeInList = !string.IsNullOrWhiteSpace(activeServer)
+                    && servers.Exists(s => string.Equals(s.ServerName, activeServer, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrWhiteSpace(activeServer) && !activeInList && servers.Count == 0)
                 {
                     servers.Insert(0, new ScriptFactoryAccess.ObjectExplorerServer
                     {
@@ -225,6 +227,12 @@ namespace MSSQLTool
                     SelectServerInList(activeServer);
                     if (ComboBox_Server.SelectedItem == null && servers.Count == 1)
                         ComboBox_Server.SelectedIndex = 0;
+                    else if (ComboBox_Server.SelectedItem == null && !string.IsNullOrWhiteSpace(activeServer))
+                    {
+                        // Object Explorer roots use friendly captions; show the active host in the
+                        // editable text without adding a duplicate entry to the list.
+                        ComboBox_Server.Text = activeServer;
+                    }
                 }
                 finally
                 {
@@ -270,7 +278,7 @@ namespace MSSQLTool
             var server = ComboBox_Server.SelectedItem as ScriptFactoryAccess.ObjectExplorerServer;
             if (server == null) return;
 
-            var ci = ScriptFactoryAccess.GetConnectionInfoFromObjectExplorerServer(server.ServerName);
+            var ci = ScriptFactoryAccess.GetConnectionInfoFromObjectExplorerServer(server.ServerName, null, true);
             if (ci == null)
             {
                 LocalizedMessageBox.Show(
@@ -290,6 +298,7 @@ namespace MSSQLTool
             selectedServer = ci.ServerName;
             // The server is already visible in the picker above, so this line only reports the database.
             Label_ConnectionDescription.Text = LocalizationManager.Format("Database: [{0}]", selectedDatabase);
+            SettingsManager.RememberCompletionServer(ci.ServerName);
             SearchInputsGrid.IsEnabled = true;
             SearchScopeGrid.IsEnabled = true;
 
@@ -1085,7 +1094,7 @@ namespace MSSQLTool
             return false;
         }
 
-        private void Button_ScriptResult_Click(object sender, RoutedEventArgs e)
+        private async void Button_ScriptResult_Click(object sender, RoutedEventArgs e)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
 
@@ -1117,7 +1126,15 @@ namespace MSSQLTool
 
                 string selectedObjectName = $"[{databaseName}].[{schemaName}].[{objectName}]";
 
-                string fullScriptResult = ScriptObjectDefinition.GetText(MSSQLToolPackage.PackageInstance, selectedObjectName);
+                // Scripting talks to the server (and SMO); doing it on the UI thread froze SSMS for as long
+                // as the round-trip took, which looked like a hang right after a wildcard search.
+                string fullScriptResult = await Task.Run(
+                    () => ScriptObjectDefinition.GetText(MSSQLToolPackage.PackageInstance, selectedObjectName));
+                if (string.IsNullOrEmpty(fullScriptResult))
+                {
+                    TextBlock_ResultCount.Text = LocalizationManager.T("Scripting returned nothing for this object.");
+                    return;
+                }
 
                 var connectionInfo = ScriptFactoryAccess.GetCurrentConnectionInfo();
 

@@ -305,15 +305,58 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <Compile Include="Completion\CompletionController.cs" />
+    <Compile Include="Completion\CompletionFilter.cs" />
     <Compile Include="Completion\CompletionModels.cs" />
     <Compile Include="Completion\CompletionPopupPlacement.cs" />
     <Compile Include="Completion\CompletionPresenter.cs" />
+    <Compile Include="Completion\CompletionUsageStore.cs" />
+    <Compile Include="Completion\SqlCaretPosition.cs" />
     <Compile Include="Completion\SqlCompletionAnalyzer.cs" />
     <Compile Include="Completion\SqlMetadataCache.cs" />
     <Compile Include="Completion\SqlMetadataDiskCache.cs" />
+    <Compile Include="Completion\SqlPromptHighlightAnalyzer.cs" />
+    <Compile Include="Completion\SqlPromptHighlightOverlay.cs" />
     <Compile Include="Completion\SqlSemanticModel.cs" />
+    <Compile Include="Completion\SqlStatementWindow.cs" />
     <Compile Include="Completion\SqlSymbolResolver.cs" />
     <Compile Include="Completion\SqlTextContext.cs" />
+    <Compile Include="Model\SqlDocumentModel.cs" />
+    <Compile Include="Model\SqlPredicateState.cs" />
+    <Compile Include="Model\SqlQualifyService.cs" />
+    <Compile Include="Model\SqlRenameService.cs" />
+    <Compile Include="Model\SqlScopeTree.cs" />
+    <Compile Include="Model\SqlSelectIntoScanner.cs" />
+    <Compile Include="Model\SqlStatementIndex.cs" />
+    <Compile Include="Model\SqlTargetScanner.cs" />
+    <Compile Include="Model\SqlTokenizer.cs" />
+    <Compile Include="Analysis\AnalysisEngine.cs" />
+    <Compile Include="Analysis\AnalysisModels.cs" />
+    <Compile Include="Analysis\AnalysisRules.cs" />
+    <Compile Include="Analysis\QuickFixService.cs" />
+    <Compile Include="Analysis\RuleCatalog.cs" />
+    <Compile Include="Commands\RefactorCommands.cs" />
+    <Compile Include="Commands\Dialogs\RefactorDialog.cs" />
+    <Compile Include="Modules\AnalysisOptionsPage.cs" />
+    <Compile Include="Modules\EditorContextMenuInstaller.cs" />
+    <Compile Include="Modules\ObjectExplorerTreeReader.cs" />
+    <Compile Include="Editor\Abstractions\IEditorHost.cs" />
+    <Compile Include="Editor\ActiveEditorLocator.cs" />
+    <Compile Include="Editor\EditorHostFactory.cs" />
+    <Compile Include="Editor\TextManager\TextManagerEditorHost.cs" />
+    <Compile Include="Editor\Vs2022\AnalysisSettingsWatcher.cs" />
+    <Compile Include="Editor\Vs2022\EditorContextMenuHook.cs" />
+    <Compile Include="Editor\Vs2022\RelatedHighlightActivation.cs" />
+    <Compile Include="Editor\Vs2022\SqlDiagnosticQuickInfo.cs" />
+    <Compile Include="Editor\Vs2022\SqlDiagnosticsTagger.cs" />
+    <Compile Include="Editor\Vs2022\SqlEditorServices.cs" />
+    <Compile Include="Editor\Vs2022\SqlRelatedHighlightTagger.cs" />
+    <Compile Include="Editor\Vs2022\SqlSuggestedActionsSource.cs" />
+    <Compile Include="Rendering\AnalysisResultsControl.cs" />
+    <Compile Include="Rendering\AnalysisRulesControl.cs" />
+    <Compile Include="Rendering\AnalysisRulesWindow.cs" />
+    <Compile Include="Rendering\DiagnosticOverlay.cs" />
+    <Compile Include="Rendering\FixAtCaretCommand.cs" />
+    <Compile Include="Rendering\QuickFixActions.cs" />
     <Reference Include="ICSharpCode.AvalonEdit">
       <HintPath>$(NuGetPackageRoot)avalonedit\6.3.1.120\lib\net462\ICSharpCode.AvalonEdit.dll</HintPath>
       <Private>True</Private>
@@ -516,6 +559,18 @@
     </Reference>
     <Reference Include="Microsoft.VisualStudio.Text.UI.Wpf">
       <HintPath>C:\Program Files\Microsoft SQL Server Management Studio 22\Release\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Text.UI.Wpf.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Language.Intellisense">
+      <HintPath>C:\Program Files\Microsoft SQL Server Management Studio 22\Release\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Language.Intellisense.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Language">
+      <HintPath>C:\Program Files\Microsoft SQL Server Management Studio 22\Release\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Language.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Utilities">
+      <HintPath>C:\Program Files\Microsoft SQL Server Management Studio 22\Release\Common7\IDE\Microsoft.VisualStudio.Utilities.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System.ComponentModel.Composition" />

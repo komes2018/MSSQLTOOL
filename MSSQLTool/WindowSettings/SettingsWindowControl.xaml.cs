@@ -14,6 +14,8 @@ namespace MSSQLTool
     using System.Windows.Media;
     using System.Windows.Navigation;
     using System.Windows.Threading;
+    using MSSQLTool.Analysis;
+    using MSSQLTool.Completion;
     using static MSSQLTool.MSSQLToolPackage;
 
     /// <summary>
@@ -160,11 +162,12 @@ as select 1;
                 var completionSettings = SettingsManager.GetSqlCompletionSettings();
                 UseSqlCompletion.IsChecked = completionSettings.enabled;
                 AutomaticSqlCompletion.IsChecked = completionSettings.automaticPopup;
-                CompletionCommitOnEnter.IsChecked = completionSettings.commitOnEnter;
                 CompletionTrustServerCertificate.IsChecked = completionSettings.trustServerCertificate;
                 CompletionSquareBrackets.IsChecked = completionSettings.useSquareBrackets;
                 CompletionAutoRefreshMetadata.IsChecked = completionSettings.autoRefreshMetadata;
                 CompletionShowObjectDetails.IsChecked = completionSettings.showObjectDetails;
+                CompletionPreferRecent.IsChecked = completionSettings.preferRecentlyUsed;
+                LoadRecentCompletions();
                 CompletionColumnPicker.IsChecked = completionSettings.enableColumnPicker;
                 CompletionAutoAliases.IsChecked = completionSettings.autoAddAliases;
                 CompletionAliasPrefixes.Text = completionSettings.aliasPrefixToIgnore;
@@ -173,10 +176,14 @@ as select 1;
                 CompletionAdditionalKeywords.Text = completionSettings.additionalKeywords;
                 CompletionDelay.Text = completionSettings.delayMilliseconds.ToString();
                 CompletionMaximumItems.Text = completionSettings.maximumItems.ToString();
+                CompletionCommitKey.SelectedIndex = Math.Max(0, Math.Min(2, (int)completionSettings.completionCommitKey));
 
                 var snippetSettings = SettingsManager.GetSnippetSettings();
                 UseSnippets.IsChecked = snippetSettings.useSnippets;
                 SnippetReplaceKeyCombo.SelectedValue = snippetSettings.replaceKey.ToString();
+
+                // Code Analysis page: one settings object drives the squiggles and the hover tips.
+                LoadAnalysisSettings();
 
                 // Code Format page: the whole profile is loaded from a single FormatterOptions instance.
                 formatOptions = SettingsManager.GetFormatterOptions();
@@ -219,7 +226,6 @@ as select 1;
             var completionSettings = SettingsManager.GetSqlCompletionSettings();
             completionSettings.enabled = UseSqlCompletion.IsChecked.GetValueOrDefault();
             completionSettings.automaticPopup = AutomaticSqlCompletion.IsChecked.GetValueOrDefault();
-            completionSettings.commitOnEnter = CompletionCommitOnEnter.IsChecked.GetValueOrDefault(true);
             completionSettings.trustServerCertificate = CompletionTrustServerCertificate.IsChecked.GetValueOrDefault();
             completionSettings.useSquareBrackets = CompletionSquareBrackets.IsChecked.GetValueOrDefault();
             completionSettings.autoRefreshMetadata = CompletionAutoRefreshMetadata.IsChecked.GetValueOrDefault();
@@ -232,6 +238,9 @@ as select 1;
             completionSettings.additionalKeywords = CompletionAdditionalKeywords.Text ?? string.Empty;
             completionSettings.delayMilliseconds = delay;
             completionSettings.maximumItems = maximumItems;
+            completionSettings.completionCommitKey = (SettingsManager.CompletionCommitKey)Math.Max(0, Math.Min(2, CompletionCommitKey.SelectedIndex));
+            completionSettings.commitOnEnter = completionSettings.completionCommitKey != SettingsManager.CompletionCommitKey.Tab;
+            completionSettings.preferRecentlyUsed = CompletionPreferRecent.IsChecked.GetValueOrDefault();
             if (!SettingsManager.SaveSqlCompletionSettings(completionSettings))
             {
                 LocalizedMessageBox.Show("The SQL completion setting could not be saved.",
@@ -250,6 +259,112 @@ as select 1;
             Completion.SqlMetadataCache.InvalidateAll();
 
             SavedMessage();
+        }
+
+        private void LoadRecentCompletions()
+        {
+            try
+            {
+                CompletionRecentList.ItemsSource = CompletionUsageStore.Snapshot();
+            }
+            catch (Exception)
+            {
+                CompletionRecentList.ItemsSource = null;
+            }
+        }
+
+        private void Button_RemoveRecentCompletion_Click(object sender, RoutedEventArgs e)
+        {
+            if (CompletionRecentList.SelectedItem is CompletionUsageEntry entry)
+            {
+                CompletionUsageStore.Remove(entry.Scope, entry.Kind, entry.Display);
+                LoadRecentCompletions();
+            }
+        }
+
+        private void Button_ClearRecentCompletions_Click(object sender, RoutedEventArgs e)
+        {
+            CompletionUsageStore.Clear();
+            LoadRecentCompletions();
+        }
+
+        private void LoadAnalysisSettings()
+        {
+            AnalysisSettings settings = SettingsManager.GetAnalysisSettings();
+            AnalysisEnabled.IsChecked = settings.enabled;
+            AnalysisSquiggles.IsChecked = settings.showSquiggles;
+            AnalysisInfoSquiggles.IsChecked = settings.showInfoSquiggles;
+            AnalysisHover.IsChecked = settings.showHover;
+            UpdateAnalysisDependencies();
+        }
+
+        private void UpdateAnalysisDependencies()
+        {
+            bool on = AnalysisEnabled.IsChecked.GetValueOrDefault(true);
+            bool squiggles = AnalysisSquiggles.IsChecked.GetValueOrDefault(true);
+            AnalysisSquiggles.IsEnabled = on;
+            AnalysisInfoSquiggles.IsEnabled = on && squiggles;
+            AnalysisHover.IsEnabled = on;
+        }
+
+        private void AnalysisFlag_Changed(object sender, RoutedEventArgs e) => UpdateAnalysisDependencies();
+
+        private void Button_SaveAnalysisSettings_Click(object sender, RoutedEventArgs e)
+        {
+            AnalysisSettings settings = SettingsManager.GetAnalysisSettings();
+            settings.enabled = AnalysisEnabled.IsChecked.GetValueOrDefault(true);
+            settings.showSquiggles = AnalysisSquiggles.IsChecked.GetValueOrDefault(true);
+            settings.showInfoSquiggles = AnalysisInfoSquiggles.IsChecked.GetValueOrDefault();
+            settings.showHover = AnalysisHover.IsChecked.GetValueOrDefault(true);
+
+            if (!SettingsManager.SaveAnalysisSettings(settings))
+            {
+                LocalizedMessageBox.Show("The code analysis settings could not be saved.",
+                    "Code Analysis", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            SavedMessage();
+        }
+
+        private void Button_ManageAnalysisRules_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                using (var window = new MSSQLTool.Rendering.AnalysisRulesWindow())
+                {
+                    Window host = Window.GetWindow(this);
+                    IntPtr owner = host != null ? new System.Windows.Interop.WindowInteropHelper(host).Handle : IntPtr.Zero;
+                    if (owner != IntPtr.Zero) window.ShowDialog(new HandleOwner(owner));
+                    else window.ShowDialog();
+                }
+            }
+            catch (Exception ex)
+            {
+                FeatureDiagnostics.Report("Code Analysis", "Opening the rule settings failed", ex);
+                return;
+            }
+
+            // The rule dialog saves on OK, so the switches may have changed with it.
+            LoadAnalysisSettings();
+        }
+
+        private void RestoreAnalysisDefaults()
+        {
+            var defaults = new AnalysisSettings();
+            SettingsManager.SaveAnalysisSettings(defaults);
+            LoadAnalysisSettings();
+        }
+
+        /// <summary>Lets the WinForms rule dialog open centred over this WPF window.</summary>
+        private sealed class HandleOwner : System.Windows.Forms.IWin32Window
+        {
+            public HandleOwner(IntPtr handle)
+            {
+                Handle = handle;
+            }
+
+            public IntPtr Handle { get; }
         }
 
         private void SavedMessage()
@@ -325,6 +440,9 @@ as select 1;
                 case "Code Format":
                     RestoreCodeFormatDefaults();
                     break;
+                case "Code Analysis":
+                    RestoreAnalysisDefaults();
+                    break;
                 default:
                     LocalizedMessageBox.Show("Default values are not available for this page.",
                         "Restore defaults", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -348,8 +466,11 @@ as select 1;
             CompletionAliasPrefixes.Text = defaults.aliasPrefixToIgnore;
             CompletionCustomAliases.Text = defaults.customAliases;
             CompletionJoinRules.Text = defaults.joinColumnRules;
+            CompletionAdditionalKeywords.Text = defaults.additionalKeywords;
             CompletionDelay.Text = defaults.delayMilliseconds.ToString();
             CompletionMaximumItems.Text = defaults.maximumItems.ToString();
+            CompletionCommitKey.SelectedIndex = (int)defaults.completionCommitKey;
+            CompletionPreferRecent.IsChecked = defaults.preferRecentlyUsed;
             SettingsManager.SaveSqlCompletionSettings(defaults);
             Completion.SqlMetadataCache.InvalidateAll();
         }
